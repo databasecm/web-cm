@@ -23,6 +23,14 @@ class Role extends SpatieRole
 
     public const LEVEL_KONSUMEN = 6;
 
+    /**
+     * Role name carrying account-management capability at level 3. The other
+     * L3 roles (finance, hr) manage finance/HR data, not accounts.
+     */
+    public const NAME_MANAGER = 'manager';
+
+    public const NAME_MANDOR = 'mandor';
+
     protected function casts(): array
     {
         return [

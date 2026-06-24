@@ -26,7 +26,7 @@ abstract class UserAccountRequest extends FormRequest
      *
      * @var list<string>
      */
-    protected const BIDANG_REQUIRED_ROLES = ['manager', 'mandor'];
+    protected const BIDANG_REQUIRED_ROLES = [Role::NAME_MANAGER, Role::NAME_MANDOR];
 
     private ?Role $resolvedRole = null;
 

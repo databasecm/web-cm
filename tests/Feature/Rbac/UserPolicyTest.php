@@ -126,13 +126,20 @@ it('scopes a Manager to accounts within its own bidang', function () {
         ->and($managerCufid->can('view', $mandorCc))->toBeFalse();
 });
 
-it('treats company-wide L3 (Finance/HR, no bidang) as unscoped by bidang', function () {
-    $finance = actor('finance');
-    $mandorCufid = actor('mandor', Bidang::Cufid);
-    $mandorCc = actor('mandor', Bidang::Cc);
+it('gives Finance and HR (L3, no bidang) zero account-management rights', function () {
+    $mandor = actor('mandor', Bidang::Cufid);
+    $konsumen = actor('konsumen');
 
-    expect($finance->can('delete', $mandorCufid))->toBeTrue()
-        ->and($finance->can('delete', $mandorCc))->toBeTrue();
+    foreach (['finance', 'hr'] as $roleName) {
+        $actor = actor($roleName);
+
+        expect($actor->can('viewAny', User::class))->toBeFalse()
+            ->and($actor->can('create', User::class))->toBeFalse()
+            ->and($actor->can('update', $mandor))->toBeFalse()
+            ->and($actor->can('delete', $mandor))->toBeFalse()
+            ->and($actor->can('delete', $konsumen))->toBeFalse()
+            ->and($actor->can('view', $mandor))->toBeFalse();
+    }
 });
 
 // ---------------------------------------------------------------------------
@@ -143,8 +150,9 @@ it('allows the account list only to management-capable levels', function () {
     expect(actor('owner')->can('viewAny', User::class))->toBeTrue()
         ->and(actor('direktur')->can('viewAny', User::class))->toBeTrue()
         ->and(actor('manager', Bidang::Cufid)->can('viewAny', User::class))->toBeTrue()
-        ->and(actor('finance')->can('viewAny', User::class))->toBeTrue()
-        ->and(actor('hr')->can('viewAny', User::class))->toBeTrue()
+        // Finance/HR are L3 but hold no account-management capability.
+        ->and(actor('finance')->can('viewAny', User::class))->toBeFalse()
+        ->and(actor('hr')->can('viewAny', User::class))->toBeFalse()
         ->and(actor('mitra_pembiayaan')->can('viewAny', User::class))->toBeFalse()
         ->and(actor('mandor', Bidang::Cufid)->can('viewAny', User::class))->toBeFalse()
         ->and(actor('konsumen')->can('viewAny', User::class))->toBeFalse();
@@ -179,8 +187,10 @@ it('forbids assigning a role that is not strictly below the actor', function () 
 });
 
 it('denies the assign gate to non-management actors', function () {
-    $mitra = actor('mitra_pembiayaan');
     $mandorRole = Role::where('name', 'mandor')->first();
 
-    expect($mitra->can('assign-account', [$mandorRole, Bidang::Cufid->value]))->toBeFalse();
+    foreach (['mitra_pembiayaan', 'finance', 'hr', 'mandor', 'konsumen'] as $roleName) {
+        $actor = actor($roleName, $roleName === 'mandor' ? Bidang::Cufid : null);
+        expect($actor->can('assign-account', [$mandorRole, Bidang::Cufid->value]))->toBeFalse();
+    }
 });

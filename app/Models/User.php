@@ -92,17 +92,18 @@ class User extends Authenticatable
     }
 
     /**
-     * Whether this account may manage other accounts at all. Only Owner (1),
-     * Direktur (2) and Management (3) carry account-management capability;
-     * Mitra (4), Mandor (5) and Konsumen (6) never do (CLAUDE.md §6.3).
+     * Whether this account may manage other accounts at all. Owner (1) and
+     * Direktur (2) always can; among Management (3) only Manager carries the
+     * capability — Finance/HR manage finance/HR data, not accounts. Mitra (4),
+     * Mandor (5) and Konsumen (6) never do (CLAUDE.md §6.3).
      */
     public function canManageAccounts(): bool
     {
-        return in_array($this->level(), [
-            Role::LEVEL_OWNER,
-            Role::LEVEL_DIREKTUR,
-            Role::LEVEL_MANAGEMENT,
-        ], true);
+        return match ($this->level()) {
+            Role::LEVEL_OWNER, Role::LEVEL_DIREKTUR => true,
+            Role::LEVEL_MANAGEMENT => $this->role?->name === Role::NAME_MANAGER,
+            default => false,
+        };
     }
 
     /**

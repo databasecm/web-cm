@@ -19,11 +19,11 @@ class UserPolicy
      * Core hierarchy gate shared by view/update/delete.
      *
      * Rules applied (CLAUDE.md §6.3–§6.4):
-     * - Actor must carry account-management capability (L1/L2/L3 only).
+     * - Actor must carry account-management capability (Owner, Direktur and
+     *   Manager only; Finance/HR/Mitra/Mandor/Konsumen carry none).
      * - Actor must strictly outrank the target (smaller level number).
      * - A bidang-scoped actor (Manager with a bidang) may only reach targets
-     *   in the same bidang. Company-wide L3 (Finance/HR, no bidang) is not
-     *   bidang-restricted.
+     *   in the same bidang.
      */
     protected function canManage(User $actor, User $target): bool
     {

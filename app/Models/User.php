@@ -90,4 +90,52 @@ class User extends Authenticatable
     {
         return $this->role?->level;
     }
+
+    /**
+     * Whether this account may manage other accounts at all. Only Owner (1),
+     * Direktur (2) and Management (3) carry account-management capability;
+     * Mitra (4), Mandor (5) and Konsumen (6) never do (CLAUDE.md §6.3).
+     */
+    public function canManageAccounts(): bool
+    {
+        return in_array($this->level(), [
+            Role::LEVEL_OWNER,
+            Role::LEVEL_DIREKTUR,
+            Role::LEVEL_MANAGEMENT,
+        ], true);
+    }
+
+    /**
+     * Whether this account's reach is scoped to a single business unit. Holds
+     * for Management/Manager (3) and Mandor (5) that carry a `bidang`
+     * (CLAUDE.md §6.4).
+     */
+    public function isBidangScoped(): bool
+    {
+        return in_array($this->level(), [
+            Role::LEVEL_MANAGEMENT,
+            Role::LEVEL_MANDOR,
+        ], true) && $this->bidang !== null;
+    }
+
+    /**
+     * Whether this account is a Mitra Pembiayaan / Supplier (level 4). Used to
+     * apply the read-only, own-project-only scope (CLAUDE.md §6.5).
+     */
+    public function isBankMitra(): bool
+    {
+        return $this->level() === Role::LEVEL_MITRA;
+    }
+
+    /**
+     * Whether this account outranks the given one in the hierarchy (a strictly
+     * smaller level number). Equal levels do not outrank each other.
+     */
+    public function outranks(User $other): bool
+    {
+        $mine = $this->level();
+        $theirs = $other->level();
+
+        return $mine !== null && $theirs !== null && $mine < $theirs;
+    }
 }

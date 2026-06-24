@@ -3,15 +3,20 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\Bidang;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +27,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role_id',
+        'bidang',
+        'is_protected',
+        'created_by',
     ];
 
     /**
@@ -44,6 +53,41 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_protected' => 'boolean',
+            'bidang' => Bidang::class,
         ];
+    }
+
+    /**
+     * The account's primary role (source of the hierarchy level).
+     */
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * The account that created this account.
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Accounts created by this account.
+     */
+    public function createdUsers(): HasMany
+    {
+        return $this->hasMany(User::class, 'created_by');
+    }
+
+    /**
+     * Hierarchy level of the account (1 = Owner .. 6 = Konsumen), or null
+     * when no role is assigned yet.
+     */
+    public function level(): ?int
+    {
+        return $this->role?->level;
     }
 }

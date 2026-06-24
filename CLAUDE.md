@@ -13,7 +13,7 @@ Dibangun oleh satu orang (pemilik proyek) dengan bantuan Pengembang, dikendalika
 - `/docs/brief-teknis.md` — arsitektur, modul, acceptance criteria, milestone
 
 ## 3. Tech stack (sudah diputuskan — jangan diganti tanpa diminta)
-- **Laravel 11**, PHP 8.3, **MySQL 8**
+- **Laravel 11**, PHP 8.5, **MySQL 8**
 - **Filament v3** → dashboard internal (Owner, Direktur, Manager, Finance, HR, Mitra, Mandor)
 - **Laravel Sanctum** → API untuk frontend konsumen & PWA Mandor (dibangun di fase lanjut)
 - **spatie/laravel-permission** → roles & permissions, dilengkapi Policy kustom untuk aturan hierarki

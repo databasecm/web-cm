@@ -7,7 +7,7 @@ ERD, dan brief teknis.
 
 ## Tech Stack
 
-- **Laravel 11** (PHP 8.5)
+- **Laravel 11** (PHP 8.4+, `^8.4`)
 - **MySQL 8** (database utama)
 - **Redis** (cache, queue, session)
 - **Filament v3** (dashboard internal, panel di `/sistem`) — _ditambahkan Task 2_

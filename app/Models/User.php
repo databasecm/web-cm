@@ -6,6 +6,8 @@ namespace App\Models;
 use App\Enums\Bidang;
 use App\Models\Concerns\Auditable;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,12 +15,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use Auditable, HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use Auditable, HasFactory, HasRoles, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -43,6 +46,11 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        // Sensitive 2FA material: kept out of serialization and, because the
+        // Auditable trait derives its redaction set from $hidden, out of the
+        // audit trail too.
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -58,6 +66,17 @@ class User extends Authenticatable
             'is_protected' => 'boolean',
             'bidang' => Bidang::class,
         ];
+    }
+
+    /**
+     * Whether this account may access the internal Filament panel. Any
+     * authenticated account is allowed for now; finer panel-access scoping
+     * (e.g. excluding Konsumen once a consumer frontend exists) is a later
+     * concern. The two-factor gate is enforced separately by middleware.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return true;
     }
 
     /**
@@ -128,6 +147,18 @@ class User extends Authenticatable
     public function isBankMitra(): bool
     {
         return $this->level() === Role::LEVEL_MITRA;
+    }
+
+    /**
+     * Whether two-factor authentication is mandatory for this account. Required
+     * for levels 1–3 (Owner, Direktur, Manager, Finance, HR); optional for
+     * Mitra (4), Mandor (5) and Konsumen (6).
+     */
+    public function requiresTwoFactor(): bool
+    {
+        $level = $this->level();
+
+        return $level !== null && $level <= Role::LEVEL_MANAGEMENT;
     }
 
     /**

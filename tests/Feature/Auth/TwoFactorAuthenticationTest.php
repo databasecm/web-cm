@@ -68,10 +68,10 @@ it('forces accounts that require 2FA to enroll before using the panel', function
 it('does not force 2FA on levels 4–6', function (string $role, ?Bidang $bidang) {
     $this->actingAs(twoFaUser($role, $bidang));
 
-    $response = $this->get(dashboardUrl());
-
-    $response->assertOk();
-    expect($response->headers->get('Location'))->not->toBe(TwoFactorSetup::getUrl());
+    // 2FA is optional for these levels: they are never redirected to enrollment.
+    // (Panel access itself — e.g. Konsumen being denied — is covered separately
+    // by PanelAccessScopeTest.)
+    expect($this->get(dashboardUrl())->isRedirect(TwoFactorSetup::getUrl()))->toBeFalse();
 })->with([
     'Mitra Pembiayaan (L4)' => ['mitra_pembiayaan', null],
     'Supplier (L4)' => ['supplier', null],

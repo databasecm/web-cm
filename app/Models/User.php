@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Enums\Bidang;
 use App\Models\Concerns\Auditable;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -139,5 +140,24 @@ class User extends Authenticatable
         $theirs = $other->level();
 
         return $mine !== null && $theirs !== null && $mine < $theirs;
+    }
+
+    /**
+     * Roles this account may assign when creating/editing others: every role
+     * strictly below its own level. Empty for accounts without management
+     * capability. Mirrors the `assign-account` gate so the UI only offers what
+     * the policy will accept.
+     *
+     * @return Collection<int, Role>
+     */
+    public function assignableRoles(): Collection
+    {
+        $level = $this->level();
+
+        if (! $this->canManageAccounts() || $level === null) {
+            return Role::query()->whereRaw('1 = 0')->get();
+        }
+
+        return Role::query()->where('level', '>', $level)->orderBy('level')->get();
     }
 }

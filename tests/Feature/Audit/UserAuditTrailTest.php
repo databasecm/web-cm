@@ -90,6 +90,20 @@ it('records a deleted entry with the prior snapshot', function () {
         ->and($log->before['password'])->toBe(User::AUDIT_REDACTED);
 });
 
+it('records a single force_deleted entry (not a duplicate deleted row)', function () {
+    $user = User::factory()->create();
+    clearAudit();
+
+    $user->forceDelete();
+
+    $log = AuditLog::sole(); // exactly one row
+
+    expect($log->action)->toBe('force_deleted')
+        ->and($log->after)->toBeNull()
+        ->and($log->before['email'])->toBe($user->email)
+        ->and($log->before['password'])->toBe(User::AUDIT_REDACTED);
+});
+
 it('records a restored entry', function () {
     $user = User::factory()->create();
     $user->delete();

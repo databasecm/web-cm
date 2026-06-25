@@ -33,7 +33,19 @@ class AuditObserver
 
     public function deleted(Model $model): void
     {
+        // For soft-deleting models a force delete fires both `deleted` and
+        // `forceDeleted`; defer to forceDeleted() in that case to avoid a
+        // duplicate row.
+        if (method_exists($model, 'isForceDeleting') && $model->isForceDeleting()) {
+            return;
+        }
+
         $this->record('deleted', $model, before: $model->auditSnapshot(), after: null);
+    }
+
+    public function forceDeleted(Model $model): void
+    {
+        $this->record('force_deleted', $model, before: $model->auditSnapshot(), after: null);
     }
 
     public function restored(Model $model): void

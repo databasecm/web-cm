@@ -5,6 +5,50 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0003 — Konsultasi tamu ephemeral & jembatan deal→akun (Fase 1B)
+
+- **Tanggal:** 2026-06-25
+- **Status:** Diterima
+- **Konteks:** Fase 1B membangun konsultasi login & tanpa-login. Runtime kita
+  Termux single-instance, Redis tersedia, **belum** pakai websockets. Konsep §3
+  & §10 menuntut chat tamu **benar-benar ephemeral** (tidak pernah ke DB, hilang
+  saat sesi berakhir), sedangkan konsep §4 menuntut alur "deal tamu → Manager buat
+  akun konsumen". ADR-0001 melarang pelebaran hierarki kelola-akun Manager.
+
+- **Keputusan:**
+  1. **Chat tamu hidup hanya di Redis ber-TTL**, tidak pernah ditulis ke
+     `consultations`/`consultation_messages`. Token sesi opaque (UUID) dipegang
+     klien di `sessionStorage`; TTL Redis sliding sebagai backstop. Tutup halaman
+     → token hilang → key kedaluwarsa sendiri. Tanpa Eloquent, tanpa DB write.
+  2. **Routing tamu di level bidang**, bukan ke Manager tertentu. Index aktif
+     `guest:active:{bidang}` (sorted set). **`manager_id` TIDAK di-pin saat sesi
+     dibuat** — diisi hanya saat Manager pertama merespons (**claim**). Ini
+     menghindari sesi yatim yang tertambat ke Manager yang sedang offline.
+  3. **Tanpa websockets → polling sederhana** dua arah (Manager `poll()` di
+     Filament; tamu AJAX ber-interval). "Online" = heuristik `last_seen`. Balasan
+     setelah tamu pergi ditulis ke Redis tapi tak terlihat & ikut kedaluwarsa —
+     diterima (ephemeral, tanpa jaminan kirim/read-receipt).
+  4. **Transport tamu = stateless API `/api/v1` + token opaque + throttle**,
+     bukan web-route ber-session.
+  5. **Jembatan deal→akun = aksi sempit terikat-konteks** (mis.
+     `createCustomerForDeal`), **bukan** pelebaran `UserPolicy::canManage`. Aksi
+     ini membuat akun Konsumen (L6, tanpa bidang), mempersist `consultations` +
+     menyalin transkrip Redis **sekali atas izin**, menulis `audit_logs` (§6.6),
+     lalu meng-expire key Redis.
+  6. **Hak lanjutan Manager atas akun yang ia buat = NOL.** `canManageAccounts()`
+     tetap seragam `false`; **tidak** ada hak scoped-by-relationship. Reset
+     password = self-service konsumen; intervensi admin via L1/L2/L3-in-domain.
+  7. **Widget chat publik (B6) DITUNDA** ke fase consumer-web. B3 (API tamu
+     stateless) & B4 (sisi Manager) tetap dibangun & diuji penuh via feature test
+     tanpa UI publik.
+
+- **Konsekuensi & arah ke depan:** Permukaan otorisasi tetap sempit & auditable.
+  Tidak ada persistensi data tamu sampai titik deal eksplisit. Sesi tamu bersifat
+  best-effort tanpa jaminan pengiriman — dapat ditingkatkan di fase consumer-web
+  (mis. websockets/Reverb) bila diperlukan, tanpa mengubah keputusan ephemeral.
+
+---
+
 ## ADR-0002 — Tetap di Laravel 11.x; upgrade ke 12.x ditunda (pre-produksi)
 
 - **Tanggal:** 2026-06-25

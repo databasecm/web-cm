@@ -80,7 +80,7 @@ class AuditLogResource extends Resource
                     ->color(fn (string $state): string => match ($state) {
                         'created' => 'success',
                         'updated' => 'warning',
-                        'deleted' => 'danger',
+                        'deleted', 'force_deleted' => 'danger',
                         'restored' => 'info',
                         default => 'gray',
                     }),
@@ -101,6 +101,7 @@ class AuditLogResource extends Resource
                         'created' => 'Created',
                         'updated' => 'Updated',
                         'deleted' => 'Deleted',
+                        'force_deleted' => 'Force Deleted',
                         'restored' => 'Restored',
                     ]),
             ])

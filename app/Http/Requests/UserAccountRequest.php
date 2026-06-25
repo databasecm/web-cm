@@ -21,13 +21,6 @@ use Illuminate\Validation\Rule;
  */
 abstract class UserAccountRequest extends FormRequest
 {
-    /**
-     * Role names that must carry a bidang; every other role must not.
-     *
-     * @var list<string>
-     */
-    protected const BIDANG_REQUIRED_ROLES = [Role::NAME_MANAGER, Role::NAME_MANDOR];
-
     private ?Role $resolvedRole = null;
 
     private bool $roleResolved = false;
@@ -78,7 +71,7 @@ abstract class UserAccountRequest extends FormRequest
                 return;
             }
 
-            $requiresBidang = in_array($role->name, self::BIDANG_REQUIRED_ROLES, true);
+            $requiresBidang = $role->requiresBidang();
             $bidang = $this->input('bidang');
 
             if ($requiresBidang && blank($bidang)) {

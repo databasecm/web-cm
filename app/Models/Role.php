@@ -48,4 +48,14 @@ class Role extends SpatieRole
     {
         return $this->hasMany(User::class);
     }
+
+    /**
+     * Whether accounts with this role must carry a bidang. True only for
+     * Manager and Mandor (CLAUDE.md §6.4); every other role must have none.
+     * Single source of truth shared by the Form Request and Filament form.
+     */
+    public function requiresBidang(): bool
+    {
+        return in_array($this->name, [self::NAME_MANAGER, self::NAME_MANDOR], true);
+    }
 }

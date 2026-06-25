@@ -131,6 +131,17 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Whether this account is a Manager (level 3 carrying the manager role).
+     * The other L3 roles (Finance, HR) are not Managers — they handle
+     * finance/HR data, not consultations or account management.
+     */
+    public function isManager(): bool
+    {
+        return $this->level() === Role::LEVEL_MANAGEMENT
+            && $this->role?->name === Role::NAME_MANAGER;
+    }
+
+    /**
      * Whether this account's reach is scoped to a single business unit. Holds
      * for Management/Manager (3) and Mandor (5) that carry a `bidang`
      * (CLAUDE.md §6.4).

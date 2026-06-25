@@ -69,14 +69,17 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Whether this account may access the internal Filament panel. Any
-     * authenticated account is allowed for now; finer panel-access scoping
-     * (e.g. excluding Konsumen once a consumer frontend exists) is a later
-     * concern. The two-factor gate is enforced separately by middleware.
+     * Whether this account may access the internal Filament panel (/sistem).
+     * Internal staff plus Mitra (4) and Mandor (5) are allowed; Konsumen (6)
+     * are denied — they use the separate consumer app. An account without a
+     * role is denied. Enforced server-side by Filament's Authenticate
+     * middleware (CLAUDE.md §6). The two-factor gate is applied separately.
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        $level = $this->level();
+
+        return $level !== null && $level < Role::LEVEL_KONSUMEN;
     }
 
     /**

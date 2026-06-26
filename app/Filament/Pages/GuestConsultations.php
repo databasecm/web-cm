@@ -3,10 +3,15 @@
 namespace App\Filament\Pages;
 
 use App\Enums\Bidang;
+use App\Exceptions\DealConversionException;
 use App\Models\Role;
+use App\Services\DealCustomerService;
 use App\Services\GuestConsultationStore;
+use Filament\Actions;
+use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Live inbox for guest (no-login) consultations (B4, ADR-0003).
@@ -35,6 +40,60 @@ class GuestConsultations extends Page
 
     /** Draft reply for the open session. */
     public string $reply = '';
+
+    /**
+     * Deal action: promote the open guest session to a consumer account
+     * (ADR-0001/0003). Authorized by the narrow createCustomerForDeal gate —
+     * never by widening the account hierarchy.
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\Action::make('deal')
+                ->label('Deal — Buat Akun Konsumen')
+                ->icon('heroicon-o-user-plus')
+                ->color('success')
+                ->visible(fn (): bool => $this->activeToken !== null && $this->store()->exists($this->activeToken))
+                ->form([
+                    Forms\Components\TextInput::make('name')->label('Nama')->required()->maxLength(255),
+                    Forms\Components\TextInput::make('phone')->label('No. Telepon')->tel()->maxLength(30),
+                    Forms\Components\TextInput::make('email')->label('Email')->email()->required()->maxLength(255),
+                    Forms\Components\Checkbox::make('consent')
+                        ->label('Simpan percakapan ini & buat akun konsumen')
+                        ->accepted(),
+                ])
+                ->action(fn (array $data) => $this->convertToCustomer($data)),
+        ];
+    }
+
+    /**
+     * @param  array{name: string, email: string, phone?: string|null}  $data
+     */
+    public function convertToCustomer(array $data): void
+    {
+        $token = $this->activeToken;
+
+        if ($token === null || ! $this->store()->exists($token)) {
+            Notification::make()->title('Sesi tamu sudah berakhir.')->warning()->send();
+            $this->activeToken = null;
+
+            return;
+        }
+
+        $meta = $this->store()->meta($token);
+        Gate::authorize('createCustomerForDeal', $meta['bidang']);
+
+        try {
+            app(DealCustomerService::class)->fromGuest($token, $data, auth()->user());
+        } catch (DealConversionException $e) {
+            Notification::make()->title($e->getMessage())->danger()->send();
+
+            return;
+        }
+
+        $this->activeToken = null;
+        Notification::make()->title('Akun konsumen dibuat & percakapan disimpan.')->success()->send();
+    }
 
     /**
      * Only consultation-handling staff reach this page: Owner, Direktur, Manager.

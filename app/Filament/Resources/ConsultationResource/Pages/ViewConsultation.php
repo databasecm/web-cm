@@ -4,10 +4,12 @@ namespace App\Filament\Resources\ConsultationResource\Pages;
 
 use App\Enums\ConsultationStatus;
 use App\Enums\SenderType;
+use App\Exceptions\DealConversionException;
 use App\Filament\Resources\ConsultationResource;
 use App\Models\Consultation;
 use App\Models\ConsultationMessage;
 use App\Policies\ConsultationPolicy;
+use App\Services\DealCustomerService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -16,6 +18,7 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Thread view for a single consultation: the conversation, a reply box, and the
@@ -71,8 +74,43 @@ class ViewConsultation extends ViewRecord
         return [
             $this->replyAction(),
             $this->markDealAction(),
+            $this->createCustomerAction(),
             $this->closeAction(),
         ];
+    }
+
+    /**
+     * Create a consumer account for a deal consultation that has none (the
+     * login-source edge of B5). Authorized by the narrow createCustomerForDeal
+     * gate; visible only while the thread is a deal without an account.
+     */
+    protected function createCustomerAction(): Actions\Action
+    {
+        return Actions\Action::make('buatAkunKonsumen')
+            ->label('Buat Akun Konsumen')
+            ->icon('heroicon-o-user-plus')
+            ->color('success')
+            ->visible(fn (Consultation $record): bool => $record->status === ConsultationStatus::Deal
+                && $record->konsumen_id === null
+                && auth()->user()->can('createCustomerForDeal', $record->bidang?->value))
+            ->form([
+                Forms\Components\TextInput::make('name')->label('Nama')->required()->maxLength(255),
+                Forms\Components\TextInput::make('phone')->label('No. Telepon')->tel()->maxLength(30),
+                Forms\Components\TextInput::make('email')->label('Email')->email()->required()->maxLength(255),
+            ])
+            ->action(function (array $data, Consultation $record): void {
+                Gate::authorize('createCustomerForDeal', $record->bidang?->value);
+
+                try {
+                    app(DealCustomerService::class)->fromConsultation($record, $data, auth()->user());
+                } catch (DealConversionException $e) {
+                    Notification::make()->title($e->getMessage())->danger()->send();
+
+                    return;
+                }
+
+                Notification::make()->title('Akun konsumen dibuat.')->success()->send();
+            });
     }
 
     /**

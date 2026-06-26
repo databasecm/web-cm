@@ -256,6 +256,23 @@ class GuestConsultationStore
     }
 
     /**
+     * Drop a session entirely — its meta, messages and active-index entry. Used
+     * once a guest session has been promoted to a persisted consultation on deal
+     * (B5): the ephemeral copy must not linger after it has been persisted.
+     */
+    public function forget(string $token): void
+    {
+        $meta = $this->meta($token);
+
+        if ($meta !== null) {
+            Redis::zrem($this->activeKey($meta['bidang']), $token);
+        }
+
+        Redis::del($this->metaKey($token));
+        Redis::del($this->msgsKey($token));
+    }
+
+    /**
      * @return array{sender_type: string, message: string, ts: float}
      */
     private function pushMessage(string $token, SenderType $sender, string $message, float $ts): array

@@ -30,6 +30,9 @@ class GuestConsultationStore
     /** Default sliding window before an idle guest session expires. */
     public const TTL_SECONDS = 1800; // 30 minutes
 
+    /** A guest seen within this window is considered "online" (B4 heuristic). */
+    public const ONLINE_WITHIN_SECONDS = 30;
+
     public function __construct(private int $ttl = self::TTL_SECONDS) {}
 
     /**
@@ -52,7 +55,8 @@ class GuestConsultationStore
         ]);
 
         $stored = $this->pushMessage($token, SenderType::Konsumen, $message, $now);
-        $this->touch($token, $bidang->value, $now);
+        $this->markGuestSeen($token, $now);
+        $this->keepAlive($token, $bidang->value, $now);
 
         return [
             'token' => $token,
@@ -73,7 +77,8 @@ class GuestConsultationStore
         $now = $this->now();
 
         $stored = $this->pushMessage($token, SenderType::Konsumen, $message, $now);
-        $this->touch($token, $meta['bidang'], $now);
+        $this->markGuestSeen($token, $now);
+        $this->keepAlive($token, $meta['bidang'], $now);
 
         return [
             'message' => $stored,
@@ -83,8 +88,9 @@ class GuestConsultationStore
 
     /**
      * Read messages after a cursor (the number of messages the client has
-     * already seen). Polling doubles as keepalive: it refreshes the sliding TTL
-     * and last_seen, which is also how a Manager detects a live session (B4).
+     * already seen). A guest poll doubles as keepalive AND a presence signal:
+     * it refreshes the sliding TTL and bumps last_seen, which is what the
+     * Manager inbox uses to mark the guest "online" (B4).
      *
      * @return array{messages: array<int, array>, cursor: int, status: string, bidang: string}
      */
@@ -96,7 +102,8 @@ class GuestConsultationStore
         $raw = Redis::lrange($this->msgsKey($token), max($after, 0), -1);
         $messages = array_map(static fn (string $json): array => json_decode($json, true), $raw);
 
-        $this->touch($token, $meta['bidang'], $now);
+        $this->markGuestSeen($token, $now);
+        $this->keepAlive($token, $meta['bidang'], $now);
 
         return [
             'messages' => $messages,
@@ -146,6 +153,109 @@ class GuestConsultationStore
     }
 
     /**
+     * Live guest sessions for a bidang, newest activity first — the Manager
+     * inbox view (B4). Each entry carries an `online` heuristic (guest seen
+     * within the online window) and the claiming `manager_id`, if any.
+     *
+     * @return array<int, array{token: string, bidang: string, status: string, started_at: float, last_seen: float, manager_id: int|null, online: bool, message_count: int}>
+     */
+    public function liveSessions(Bidang $bidang): array
+    {
+        $now = $this->now();
+        $sessions = [];
+
+        foreach ($this->activeTokens($bidang) as $token) {
+            $meta = $this->meta($token);
+
+            if ($meta === null) {
+                continue;
+            }
+
+            $lastSeen = (float) $meta['last_seen'];
+
+            $sessions[] = [
+                'token' => $token,
+                'bidang' => $meta['bidang'],
+                'status' => $meta['status'],
+                'started_at' => (float) $meta['started_at'],
+                'last_seen' => $lastSeen,
+                'manager_id' => isset($meta['manager_id']) ? (int) $meta['manager_id'] : null,
+                'online' => ($now - $lastSeen) < self::ONLINE_WITHIN_SECONDS,
+                'message_count' => (int) Redis::llen($this->msgsKey($token)),
+            ];
+        }
+
+        usort($sessions, static fn (array $a, array $b): int => $b['last_seen'] <=> $a['last_seen']);
+
+        return $sessions;
+    }
+
+    /**
+     * Read a session's transcript for the Manager view. A pure read: it does not
+     * extend the TTL or mark the guest seen, so a Manager merely watching never
+     * keeps an abandoned session alive. Returns exists=false once it has expired.
+     *
+     * @return array{exists: bool, messages: array<int, array>, status: string|null, bidang: string|null, manager_id: int|null}
+     */
+    public function read(string $token): array
+    {
+        $meta = $this->meta($token);
+
+        if ($meta === null) {
+            return ['exists' => false, 'messages' => [], 'status' => null, 'bidang' => null, 'manager_id' => null];
+        }
+
+        $raw = Redis::lrange($this->msgsKey($token), 0, -1);
+
+        return [
+            'exists' => true,
+            'messages' => array_map(static fn (string $json): array => json_decode($json, true), $raw),
+            'status' => $meta['status'],
+            'bidang' => $meta['bidang'],
+            'manager_id' => isset($meta['manager_id']) ? (int) $meta['manager_id'] : null,
+        ];
+    }
+
+    /**
+     * Append a Manager reply to a live session. Refreshes the session's liveness
+     * (so the guest still has a window to return and read it) but NOT the guest
+     * presence marker. Mirrors the persisted-thread reply in B2.
+     *
+     * @return array{message: array, cursor: int}
+     */
+    public function appendManagerReply(string $token, string $message): array
+    {
+        $meta = $this->requireSession($token);
+        $now = $this->now();
+
+        $stored = $this->pushMessage($token, SenderType::Manager, $message, $now);
+        $this->keepAlive($token, $meta['bidang'], $now);
+
+        return [
+            'message' => $stored,
+            'cursor' => (int) Redis::llen($this->msgsKey($token)),
+        ];
+    }
+
+    /**
+     * Claim a session for a Manager on first response — set manager_id only if it
+     * is not already set (ADR-0003). Returns whether this call performed the
+     * claim. Overseers (Owner/Direktur) deliberately never call this.
+     */
+    public function claim(string $token, int $managerId): bool
+    {
+        $meta = $this->requireSession($token);
+
+        if (isset($meta['manager_id']) && $meta['manager_id'] !== '') {
+            return false;
+        }
+
+        Redis::hset($this->metaKey($token), 'manager_id', $managerId);
+
+        return true;
+    }
+
+    /**
      * @return array{sender_type: string, message: string, ts: float}
      */
     private function pushMessage(string $token, SenderType $sender, string $message, float $ts): array
@@ -157,14 +267,26 @@ class GuestConsultationStore
     }
 
     /**
-     * Refresh the sliding TTL and last_seen, and (re)index the session as active.
+     * Refresh session liveness: extend the sliding TTL and (re)index the session
+     * as active so it stays in the Manager inbox. Driven by BOTH sides — a guest
+     * message/poll and a Manager reply all keep the session alive. Deliberately
+     * does NOT touch last_seen (that is guest presence, see markGuestSeen).
      */
-    private function touch(string $token, string $bidang, float $now): void
+    private function keepAlive(string $token, string $bidang, float $now): void
     {
-        Redis::hset($this->metaKey($token), 'last_seen', $now);
         Redis::expire($this->metaKey($token), $this->ttl);
         Redis::expire($this->msgsKey($token), $this->ttl);
         Redis::zadd($this->activeKey($bidang), $now, $token);
+    }
+
+    /**
+     * Record guest presence. Only guest-side activity (start/append/poll) updates
+     * last_seen, so the "online" heuristic reflects the guest actually being on
+     * the page — a Manager reading or replying never makes the guest look online.
+     */
+    private function markGuestSeen(string $token, float $now): void
+    {
+        Redis::hset($this->metaKey($token), 'last_seen', $now);
     }
 
     /**

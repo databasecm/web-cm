@@ -27,6 +27,7 @@ Monolith modular Laravel. API REST ber-versi `/api/v1`. Dashboard internal via F
 - Migration: satu tabel per file, gunakan FK constraints. Tabel & kolom `snake_case`, model `StudlyCase`.
 - Validasi via Form Request; otorisasi via Policy/Gate (jangan menaruh aturan akses di controller mentah).
 - **UI berbahasa Indonesia**, kode & komentar berbahasa Inggris.
+- **Uang = `BigDecimal` (brick/math), bukan `float`** (ADR-0005). Kalkulasi eksak; pembulatan hanya di hasil akhir ke 2 desimal mode `HALF_UP`. Kolom DB `decimal`.
 - Tulis test untuk logika penting (terutama RBAC, pembayaran, payroll).
 
 ## 6. ATURAN RBAC (hard rules — tidak boleh dilanggar)

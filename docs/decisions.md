@@ -5,6 +5,40 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0004 — AHSAP = master hidup, RAB = penawaran beku (dua lapis snapshot)
+
+- **Tanggal:** 2026-06-27
+- **Status:** Diterima (kontrak desain untuk Fase 2A/2B)
+- **Konteks:** AHSAP (Analisa Harga Satuan Pekerjaan) menjadi dasar RAB. Harga
+  material berubah dari waktu ke waktu (Material DB = sumber kebenaran), sedangkan
+  RAB yang sudah diterbitkan ke konsumen adalah penawaran harga yang harus
+  **stabil**. CLAUDE.md §7: "perubahan harga material harus bisa menandai RAB
+  terdampak" — menandai, bukan menulis ulang diam-diam.
+
+- **Keputusan — dua lapis snapshot:**
+  1. **Komponen AHSAP menyimpan `unit_price` sebagai snapshot** dari
+     `Material.price` saat komponen ditambah/di-sync (bukan join live).
+     `base_price = Σ(coefficient × unit_price)` dihitung dari snapshot → AHSAP
+     self-contained & stabil.
+  2. **Perubahan harga material TIDAK mengubah AHSAP diam-diam.** Ia hanya
+     menandai AHSAP terdampak `needs_review` + mencatat `material_price_history`.
+     Sinkronisasi adalah **aksi Manager eksplisit** ("Sinkronkan & Hitung Ulang")
+     yang menarik harga terkini ke komponen, menghitung ulang `base_price`, dan
+     membersihkan flag.
+  3. **RAB men-snapshot `base_price` AHSAP saat RAB dibuat** (ke `rab_items`).
+     Karena itu resync AHSAP **tidak pernah** mengubah RAB yang sudah ada — AHSAP
+     = master hidup; RAB = penawaran beku.
+
+- **Konsekuensi & arah ke depan:** Tidak ada perubahan harga yang merembet
+  diam-diam ke dokumen historis. Drift harga selalu eksplisit & terlacak
+  (history + flag + resync). Bila kelak butuh imutabilitas penuh pada AHSAP itu
+  sendiri, dapat ditambah **versioning AHSAP**, tetapi snapshot-saat-RAB sudah
+  cukup untuk melindungi RAB. Penandaan AHSAP saat harga berubah dibuat
+  **idempoten** (satu perubahan harga = satu penandaan) meski jalur service &
+  observer berjalan bersamaan.
+
+---
+
 ## ADR-0003 — Konsultasi tamu ephemeral & jembatan deal→akun (Fase 1B)
 
 - **Tanggal:** 2026-06-25

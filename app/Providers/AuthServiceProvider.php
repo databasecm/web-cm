@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\Ahsap;
 use App\Models\Consultation;
 use App\Models\Material;
 use App\Models\User;
+use App\Policies\AhsapPolicy;
 use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\MaterialPolicy;
@@ -26,6 +28,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Consultation::class, ConsultationPolicy::class);
         Gate::policy(Material::class, MaterialPolicy::class);
+        Gate::policy(Ahsap::class, AhsapPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.

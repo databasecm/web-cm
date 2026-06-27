@@ -29,6 +29,9 @@ class Ahsap extends Model
         'bidang',
         'unit',
         'base_price',
+        'needs_review',
+        'review_reason',
+        'review_requested_at',
     ];
 
     /**
@@ -39,6 +42,8 @@ class Ahsap extends Model
         return [
             'bidang' => Bidang::class,
             'base_price' => 'decimal:2',
+            'needs_review' => 'boolean',
+            'review_requested_at' => 'datetime',
         ];
     }
 

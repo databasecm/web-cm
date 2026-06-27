@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\AhsapComponentType;
 use App\Observers\AhsapComponentObserver;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Database\Factories\AhsapComponentFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -57,6 +59,8 @@ class AhsapComponent extends Model
      */
     public function lineTotal(): string
     {
-        return number_format(round((float) $this->coefficient * (float) $this->unit_price, 2), 2, '.', '');
+        return (string) BigDecimal::of((string) $this->coefficient)
+            ->multipliedBy((string) $this->unit_price)
+            ->toScale(2, RoundingMode::HALF_UP);
     }
 }

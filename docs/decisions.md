@@ -5,6 +5,32 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0005 — Semua kalkulasi moneter memakai BigDecimal (brick/math), bukan float
+
+- **Tanggal:** 2026-06-27
+- **Status:** Diterima
+- **Konteks:** `ext-bcmath` **tidak tersedia** di runtime Termux, sehingga 2A-2
+  sempat memakai `float + round` untuk `base_price`. Float berisiko galat
+  pembulatan pada uang; sebelum RAB, pembayaran, payroll & pajak dibangun (banyak
+  penjumlahan/perkalian rupiah berlapis), risiko ini harus dihapus.
+
+- **Keputusan:** Mengadopsi **`brick/math` (`BigDecimal`)** sebagai **standar
+  matematika-uang** untuk seluruh sistem — pure-PHP, tanpa ekstensi (lolos di
+  Termux & container). Aturan:
+  1. Setiap kalkulasi nilai uang (AHSAP, RAB, termin/cicilan, payroll, pajak,
+     buku kas) memakai `BigDecimal`; **dilarang** memakai `float`/`round()` untuk
+     uang.
+  2. Sumasi/perkalian dilakukan eksak; **pembulatan hanya di hasil akhir** ke
+     **2 desimal**, mode **`HALF_UP`**.
+  3. Kolom DB tetap `decimal(15,2)` (atau presisi lain sesuai konteks); nilai
+     disimpan sebagai string hasil `->toScale(2, HALF_UP)`.
+
+- **Konsekuensi & arah ke depan:** `AhsapCalculator` & `AhsapComponent::lineTotal`
+  direfaktor ke `BigDecimal` (nilai hasil identik dengan 2A-2, test tetap hijau).
+  Modul moneter berikutnya mengikuti pola ini. Konvensi dicatat di CLAUDE.md §5.
+
+---
+
 ## ADR-0004 — AHSAP = master hidup, RAB = penawaran beku (dua lapis snapshot)
 
 - **Tanggal:** 2026-06-27

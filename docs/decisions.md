@@ -5,6 +5,80 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0008 — Semantik `projects.bank_mitra_id` + rekonsiliasi Fase 4
+
+- **Tanggal:** 2026-06-29
+- **Status:** Diterima (sementara untuk Fase 2B; ditinjau ulang Fase 4)
+- **Konteks:** §6.5 menuntut Mitra Pembiayaan (L4) hanya melihat proyek yang
+  dibiayainya (`bank_mitra_id` miliknya). `App\Models\Scopes\BankMitraScope`
+  (skeleton sejak Fase 1, sudah unit-tested) membandingkan FK ini ke
+  `Auth::id()`. Namun ERD §A.4 juga memuat tabel `bank_mitra` + `financings`
+  (alur pembiayaan penuh) yang baru lahir di **Fase 3/4**.
+
+- **Keputusan:** Untuk **Fase 2B**, `projects.bank_mitra_id` menunjuk ke **akun
+  user Mitra (L4)** secara langsung, sehingga `BankMitraScope` bekerja apa
+  adanya. Kolom bersifat **dorman** di 2B (diisi nyata saat pembiayaan dibangun).
+  Penegakan §6.5 = `#[ScopedBy(BankMitraScope::class)]` pada `Project` + policy
+  read-only untuk L4.
+
+- **Konsekuensi & arah ke depan:** Saat tabel `bank_mitra` + `financings` lahir
+  (**Fase 3/4**), **tinjau ulang**: apakah `projects.bank_mitra_id` di-*repoint*
+  ke `bank_mitra.id`, atau dipertahankan sebagai FK ke akun user dengan
+  `bank_mitra` sebagai profil tertaut `user_id` (jembatan). ADR rekonsiliasi akan
+  dicatat pada fase itu; `BankMitraScope::FOREIGN_KEY` adalah satu titik ubah.
+
+---
+
+## ADR-0007 — RAB = snapshot beku dari AHSAP; revisi via versi baru
+
+- **Tanggal:** 2026-06-29
+- **Status:** Diterima (lapis-2 dari ADR-0004)
+- **Konteks:** `rab_items.ahsap_id` menautkan item RAB ke AHSAP, tetapi penawaran
+  yang sudah diterbitkan ke konsumen harus **stabil** meski `AHSAP.base_price`
+  berubah kemudian (resync 2A-3).
+
+- **Keputusan:**
+  1. Saat RAB dibangun (`RabBuilder`), tiap `rab_item` dari AHSAP **menyalin**
+     `description`/`unit`/`unit_price = AHSAP.base_price` **saat itu** (snapshot,
+     bukan join live). `volume` diisi Manager; `subtotal = volume × unit_price`
+     (BigDecimal, ADR-0005). `ahsap_id` disimpan hanya untuk jejak asal.
+  2. Total RAB (`total_material`, `total_upah`, `overhead`, `margin`, `ppn`,
+     `grand_total`) **dihitung & disimpan** saat build → reproducible & beku.
+  3. **Resync AHSAP TIDAK mengubah RAB yang sudah ada.** RAB baru (versi baru)
+     barulah memakai harga terbaru.
+  4. **Imutabilitas:** RAB `approved` dibekukan; perubahan → **versi baru**
+     (`version`+1, `status=draft`), bukan mutasi RAB lama.
+
+- **Konsekuensi & arah ke depan:** Penawaran historis tak pernah berubah
+  diam-diam. `contract_value` proyek (ADR finalisasi) di-set dari `grand_total`
+  RAB yang disetujui → lapis-3 snapshot (master AHSAP → RAB beku → kontrak beku).
+
+---
+
+## ADR-0006 — Setting margin/PPN/overhead: tabel sendiri + SettingService
+
+- **Tanggal:** 2026-06-29
+- **Status:** Diterima
+- **Konteks:** Margin, PPN, dan overhead RAB butuh **default global** (dikelola
+  Owner/Direktur) dengan **override per-RAB**. Butuh mekanisme setting yang ringan
+  (Termux) dan tanpa ketergantungan ekstra bila bisa.
+
+- **Keputusan:**
+  1. **Tabel `settings` key-value sederhana** (hand-rolled, tanpa paket) + model
+     `Setting` + **`SettingService` ber-cache** yang mengekspos accessor bertipe
+     (`marginPercentDefault()`, `ppnPercentDefault()`, `overheadPercentDefault()`).
+  2. Dikelola **Owner/Direktur** via halaman Filament **Pengaturan**.
+  3. **Override + snapshot rate ke RAB:** `rabs` menyimpan **rate beku**
+     (`margin_percent`, `ppn_percent`, `overhead_percent`) **dan** nominal hasil
+     (`margin`, `ppn`, `overhead`). RAB form pre-fill rate dari setting; Manager
+     boleh override; rate yang dipakai di-snapshot → `grand_total` reproducible.
+
+- **Konsekuensi & arah ke depan:** Mengubah default global **tidak** mengubah RAB
+  lama (rate sudah ter-snapshot). Pola setting yang sama dapat dipakai modul lain
+  (mis. upah harian payroll) di fase berikutnya.
+
+---
+
 ## ADR-0005 — Semua kalkulasi moneter memakai BigDecimal (brick/math), bukan float
 
 - **Tanggal:** 2026-06-27

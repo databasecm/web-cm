@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\AhsapComponentType;
 use App\Enums\Bidang;
 use App\Models\Concerns\Auditable;
 use App\Services\AhsapCalculator;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Database\Factories\AhsapFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -53,5 +56,36 @@ class Ahsap extends Model
     public function components(): HasMany
     {
         return $this->hasMany(AhsapComponent::class);
+    }
+
+    /**
+     * Split base_price into its material and labour buckets from the components
+     * (material + alat → material; upah → upah), each as a 2-decimal string. Used
+     * by the RAB builder to keep total_material vs total_upah meaningful while a
+     * line item carries the blended unit_price (ADR-0007). The two buckets sum to
+     * base_price.
+     *
+     * @return array{material: string, upah: string}
+     */
+    public function costBreakdown(): array
+    {
+        $material = BigDecimal::zero();
+        $upah = BigDecimal::zero();
+
+        foreach ($this->components()->get() as $component) {
+            $line = BigDecimal::of((string) $component->coefficient)
+                ->multipliedBy((string) $component->unit_price);
+
+            if ($component->type === AhsapComponentType::Upah) {
+                $upah = $upah->plus($line);
+            } else {
+                $material = $material->plus($line);
+            }
+        }
+
+        return [
+            'material' => (string) $material->toScale(2, RoundingMode::HALF_UP),
+            'upah' => (string) $upah->toScale(2, RoundingMode::HALF_UP),
+        ];
     }
 }

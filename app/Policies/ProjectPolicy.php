@@ -77,6 +77,16 @@ class ProjectPolicy
         return $this->canManageRecord($actor, $project);
     }
 
+    /**
+     * Checkout (choose scheme + generate installments) is the owning consumer's
+     * action. State guards (approved RAB, no double checkout) live in
+     * CheckoutService.
+     */
+    public function checkout(User $actor, Project $project): bool
+    {
+        return $this->owns($actor, $project);
+    }
+
     public function delete(User $actor, Project $project): bool
     {
         return $this->canManageRecord($actor, $project);

@@ -66,4 +66,16 @@ class RabPolicy
             && $actor->level() === Role::LEVEL_KONSUMEN
             && (int) $project->konsumen_id === (int) $actor->getKey();
     }
+
+    /**
+     * Download the penawaran PDF (Fase 2B-9). Anyone who may view the RAB —
+     * a Manager in its bidang or the owning consumer — may download it, but
+     * only once the quote is real: a draft (still being built) is never
+     * offered, only a submitted or approved version.
+     */
+    public function downloadPdf(User $actor, Rab $rab): bool
+    {
+        return in_array($rab->status, [RabStatus::Submitted, RabStatus::Approved], true)
+            && $this->view($actor, $rab);
+    }
 }

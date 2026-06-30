@@ -7,6 +7,7 @@ use App\Models\Ahsap;
 use App\Models\Project;
 use App\Models\Rab;
 use App\Services\RabBuilder;
+use App\Services\RabPenawaranPdf;
 use App\Services\SettingService;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -51,6 +52,23 @@ class RabsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('total_material')->label('Material')->money('IDR'),
                 Tables\Columns\TextColumn::make('total_upah')->label('Upah')->money('IDR'),
                 Tables\Columns\TextColumn::make('grand_total')->label('Grand Total')->money('IDR')->weight('bold'),
+            ])
+            ->actions([
+                // Download the penawaran PDF — only for a submitted/approved RAB,
+                // and only for staff who may view it (Manager in its bidang).
+                Tables\Actions\Action::make('unduhPenawaran')
+                    ->label('Unduh Penawaran')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->visible(fn (Rab $record): bool => auth()->user()->can('downloadPdf', $record))
+                    ->action(function (Rab $record) {
+                        $pdf = app(RabPenawaranPdf::class);
+
+                        return response()->streamDownload(
+                            fn () => print ($pdf->make($record)->output()),
+                            $pdf->filename($record),
+                            ['Content-Type' => 'application/pdf'],
+                        );
+                    }),
             ])
             ->headerActions([
                 Tables\Actions\Action::make('buatRab')

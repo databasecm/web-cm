@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\RabStatus;
 use App\Models\Rab;
 use App\Models\Role;
 use App\Models\User;
@@ -61,6 +62,7 @@ class RabPolicy
         $project = $rab->project;
 
         return $project !== null
+            && $rab->status === RabStatus::Submitted
             && $actor->level() === Role::LEVEL_KONSUMEN
             && (int) $project->konsumen_id === (int) $actor->getKey();
     }

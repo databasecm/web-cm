@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A project (ERD §A.2) — the sales/delivery hub a deal flows into.
@@ -66,6 +67,14 @@ class Project extends Model
     public function consultation(): BelongsTo
     {
         return $this->belongsTo(Consultation::class);
+    }
+
+    /**
+     * Design versions, latest first.
+     */
+    public function designs(): HasMany
+    {
+        return $this->hasMany(Design::class)->orderByDesc('version');
     }
 
     public function manager(): BelongsTo

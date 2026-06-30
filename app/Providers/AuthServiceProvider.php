@@ -40,9 +40,10 @@ class AuthServiceProvider extends ServiceProvider
         // Backed by UserPolicy::assign so create/update share one rule set.
         Gate::define('assign-account', [UserPolicy::class, 'assign']);
 
-        // Narrow, context-bound ability to create a consumer account for a deal
-        // in a given bidang (ADR-0001/0003). Intentionally NOT part of UserPolicy
-        // so the general account-management hierarchy is never widened.
+        // Narrow, context-bound deal forward-creations (ADR-0001/0003).
+        // Intentionally NOT part of UserPolicy/ProjectPolicy so the general
+        // account-management hierarchy is never widened.
         Gate::define('createCustomerForDeal', [DealPolicy::class, 'createCustomer']);
+        Gate::define('createProjectForDeal', [DealPolicy::class, 'createProject']);
     }
 }

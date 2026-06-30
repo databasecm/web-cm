@@ -6,6 +6,7 @@ use App\Enums\Bidang;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Filament\Resources\ProjectResource\RelationManagers\DesignsRelationManager;
+use App\Filament\Resources\ProjectResource\RelationManagers\RabsRelationManager;
 use App\Models\Project;
 use App\Models\Role;
 use Filament\Resources\Resource;
@@ -105,6 +106,7 @@ class ProjectResource extends Resource
     {
         return [
             DesignsRelationManager::class,
+            RabsRelationManager::class,
         ];
     }
 

@@ -77,6 +77,14 @@ class Project extends Model
         return $this->hasMany(Design::class)->orderByDesc('version');
     }
 
+    /**
+     * RAB versions, latest first.
+     */
+    public function rabs(): HasMany
+    {
+        return $this->hasMany(Rab::class)->orderByDesc('version');
+    }
+
     public function manager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'manager_id');

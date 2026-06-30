@@ -85,6 +85,14 @@ class Project extends Model
         return $this->hasMany(Rab::class)->orderByDesc('version');
     }
 
+    /**
+     * Payment installments, in term order.
+     */
+    public function installments(): HasMany
+    {
+        return $this->hasMany(Installment::class)->orderBy('term_no');
+    }
+
     public function manager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'manager_id');

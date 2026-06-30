@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Consumer\DesignApprovalController;
 use App\Http\Controllers\Api\Consumer\ProjectController;
 use App\Http\Controllers\Api\Consumer\RabApprovalController;
+use App\Http\Controllers\Api\Consumer\RabPdfController;
 use App\Http\Controllers\Api\GuestConsultationController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,5 +36,6 @@ Route::prefix('v1')->group(function () {
 
         Route::post('designs/{design}/approve', [DesignApprovalController::class, 'store']);
         Route::post('rabs/{rab}/approve', [RabApprovalController::class, 'store']);
+        Route::get('rabs/{rab}/pdf', [RabPdfController::class, 'show']);
     });
 });

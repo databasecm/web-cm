@@ -5,6 +5,39 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0010 — PDF penawaran via dompdf (pure-PHP), cermin RAB beku
+
+- **Tanggal:** 2026-06-30
+- **Status:** Diterima
+- **Konteks:** Penawaran (Fase 2B-9) perlu di-render ke PDF ber-kop dari RAB.
+  Lingkungan target (container 8.4 & Termux 8.5, dikendalikan dari HP) **tidak
+  punya Chromium/Node yang andal**, sehingga renderer berbasis headless browser
+  (mis. Browsershot/Puppeteer) tidak cocok.
+
+- **Keputusan:** Pakai **`barryvdh/laravel-dompdf`** (pure-PHP, tanpa biner
+  eksternal). PDF dirender dari Blade `resources/views/pdf/rab-penawaran.blade.php`
+  oleh service `RabPenawaranPdf`. Identitas perusahaan (kop) disimpan di
+  `config/company.php` (override via `.env`) agar jadi satu sumber kebenaran dan
+  mudah dipindah ke tabel settings nanti.
+
+- **Sumber angka = snapshot RAB, bukan hitung ulang:** semua nilai (total
+  material/upah, overhead/margin/PPN beserta `*_percent` tersnapshot, grand_total)
+  dan item dibaca langsung dari kolom RAB & `rab_items` yang sudah beku
+  (ADR-0007). PDF adalah **cermin** RAB — tidak pernah menghitung ulang dari AHSAP
+  live.
+
+- **Akses:** `RabPolicy::downloadPdf` = boleh `view` RAB **dan** status
+  `submitted`/`approved` (draft tak ditawarkan). Manager (bidangnya) lewat aksi
+  Filament "Unduh Penawaran"; konsumen lewat `GET /api/v1/rabs/{id}/pdf`
+  (kanal consumer, kepemilikan via policy).
+
+- **Konsekuensi:** dompdf punya keterbatasan CSS (tanpa flexbox/grid) → template
+  memakai tabel/float sederhana. Logo opsional (dirender hanya bila file ada).
+  Test menggerbangkan **isi** lewat render Blade (deterministik) + memastikan
+  byte PDF benar (`%PDF`), bukan mem-parse biner PDF.
+
+---
+
 ## ADR-0009 — Test E2E UI (Dusk) ditunda ke fase QA pra-produksi
 
 - **Tanggal:** 2026-06-29

@@ -28,6 +28,7 @@ class Project extends Model
 
     protected $fillable = [
         'konsumen_id',
+        'consultation_id',
         'manager_id',
         'bidang',
         'title',
@@ -57,6 +58,14 @@ class Project extends Model
     public function konsumen(): BelongsTo
     {
         return $this->belongsTo(User::class, 'konsumen_id');
+    }
+
+    /**
+     * The consultation deal this project grew from, if any (Fase 2B bridge).
+     */
+    public function consultation(): BelongsTo
+    {
+        return $this->belongsTo(Consultation::class);
     }
 
     public function manager(): BelongsTo

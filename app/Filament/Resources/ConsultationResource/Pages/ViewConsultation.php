@@ -5,11 +5,14 @@ namespace App\Filament\Resources\ConsultationResource\Pages;
 use App\Enums\ConsultationStatus;
 use App\Enums\SenderType;
 use App\Exceptions\DealConversionException;
+use App\Exceptions\ProjectConversionException;
 use App\Filament\Resources\ConsultationResource;
 use App\Models\Consultation;
 use App\Models\ConsultationMessage;
+use App\Models\Project;
 use App\Policies\ConsultationPolicy;
 use App\Services\DealCustomerService;
+use App\Services\ProjectFromDealService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -75,8 +78,46 @@ class ViewConsultation extends ViewRecord
             $this->replyAction(),
             $this->markDealAction(),
             $this->createCustomerAction(),
+            $this->createProjectAction(),
             $this->closeAction(),
         ];
+    }
+
+    /**
+     * Create a draft project from a deal whose consumer already has an account
+     * (Fase 2B bridge). Authorized by the narrow createProjectForDeal gate;
+     * visible only while the thread is a deal, has a consumer account, and has
+     * not already spawned a project (one project per deal).
+     */
+    protected function createProjectAction(): Actions\Action
+    {
+        return Actions\Action::make('buatProyek')
+            ->label('Buat Proyek')
+            ->icon('heroicon-o-briefcase')
+            ->color('primary')
+            ->visible(fn (Consultation $record): bool => $record->status === ConsultationStatus::Deal
+                && $record->konsumen_id !== null
+                && ! Project::query()->where('consultation_id', $record->id)->exists()
+                && auth()->user()->can('createProjectForDeal', $record->bidang?->value))
+            ->form([
+                Forms\Components\TextInput::make('title')
+                    ->label('Judul Proyek')
+                    ->maxLength(255)
+                    ->placeholder('Kosongkan untuk judul otomatis'),
+            ])
+            ->action(function (array $data, Consultation $record): void {
+                Gate::authorize('createProjectForDeal', $record->bidang?->value);
+
+                try {
+                    app(ProjectFromDealService::class)->create($record, auth()->user(), $data['title'] ?? null);
+                } catch (ProjectConversionException $e) {
+                    Notification::make()->title($e->getMessage())->danger()->send();
+
+                    return;
+                }
+
+                Notification::make()->title('Proyek draft dibuat dari deal.')->success()->send();
+            });
     }
 
     /**

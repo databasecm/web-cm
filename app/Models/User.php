@@ -166,6 +166,16 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Whether this account is specifically the financing bank (Mitra
+     * Pembiayaan), as opposed to a Supplier — both sit at level 4 but only the
+     * financing bank owns the read-only financing dashboard (Fase 2B-8).
+     */
+    public function isMitraPembiayaan(): bool
+    {
+        return $this->role?->name === Role::NAME_MITRA_PEMBIAYAAN;
+    }
+
+    /**
      * Whether two-factor authentication is mandatory for this account. Required
      * for levels 1–3 (Owner, Direktur, Manager, Finance, HR); optional for
      * Mitra (4), Mandor (5) and Konsumen (6).

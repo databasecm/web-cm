@@ -5,6 +5,32 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0009 — Test E2E UI (Dusk) ditunda ke fase QA pra-produksi
+
+- **Tanggal:** 2026-06-29
+- **Status:** Diterima (item pra-produksi, sejajar ADR-0002)
+- **Konteks:** Beberapa permukaan Filament sulit diuji penuh lewat test harness
+  Livewire — khususnya **injeksi nilai `Select` di dalam `Repeater`** (nilai
+  ter-strip; keterbatasan dikenal Filament/Livewire). Akibatnya, kebenaran
+  bisnis (mis. RAB builder 2B-4) **digerbangkan di service-level** yang lebih
+  kuat & deterministik, sementara test relation-manager hanya menutup
+  visibilitas aksi & scope.
+
+- **Keputusan:** Kebenaran logika moneter/bisnis tetap digerbangkan di
+  **feature/service test** (Pest). **Cakupan E2E UI sebenarnya** (mengisi form
+  repeater kompleks, alur klik penuh) dialihkan ke **Laravel Dusk** dan
+  dijadwalkan sebagai **task QA pra-produksi tersendiri** — **bukan sekarang**
+  (Dusk butuh browser/driver, di luar lingkup pembangunan fitur inkremental saat
+  ini).
+
+- **Konsekuensi & arah ke depan:** Sebelum go-production, kerjakan task "Smoke
+  E2E (Dusk)" untuk alur kritis end-to-end (konsultasi→deal→RAB→checkout). Sampai
+  itu, risiko diterima karena tiap unit logika sudah tergerbang test dan app
+  belum publik. Pola "gerbang math di service, UI test untuk
+  visibilitas/scope" adalah keputusan sadar, bukan kompromi.
+
+---
+
 ## ADR-0008 — Semantik `projects.bank_mitra_id` + rekonsiliasi Fase 4
 
 - **Tanggal:** 2026-06-29

@@ -22,4 +22,29 @@ enum PaymentScheme: string
             self::Lunas => 'Lunas',
         };
     }
+
+    /**
+     * The installment schedule for this scheme (konsep §5): percentage, when it
+     * becomes due, and a label. The percentages sum to 100; the last term takes
+     * the rounding remainder so Σ amounts == contract_value exactly.
+     *
+     * @return array<int, array{percentage: string, due_condition: DueCondition, label: string}>
+     */
+    public function terms(): array
+    {
+        return match ($this) {
+            self::Termin3 => [
+                ['percentage' => '30', 'due_condition' => DueCondition::Checkout, 'label' => 'DP'],
+                ['percentage' => '40', 'due_condition' => DueCondition::Progress50, 'label' => 'Progres'],
+                ['percentage' => '30', 'due_condition' => DueCondition::Bast, 'label' => 'Pelunasan'],
+            ],
+            self::Fifty => [
+                ['percentage' => '50', 'due_condition' => DueCondition::Checkout, 'label' => 'DP'],
+                ['percentage' => '50', 'due_condition' => DueCondition::Bast, 'label' => 'Pelunasan'],
+            ],
+            self::Lunas => [
+                ['percentage' => '100', 'due_condition' => DueCondition::Checkout, 'label' => 'Lunas'],
+            ],
+        };
+    }
 }

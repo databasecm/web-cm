@@ -14,6 +14,7 @@ enum RabStatus: string
     case Draft = 'draft';
     case Submitted = 'submitted';
     case Approved = 'approved';
+    case Superseded = 'superseded';
 
     public function label(): string
     {
@@ -21,6 +22,7 @@ enum RabStatus: string
             self::Draft => 'Draft',
             self::Submitted => 'Diajukan',
             self::Approved => 'Disetujui',
+            self::Superseded => 'Digantikan',
         };
     }
 }

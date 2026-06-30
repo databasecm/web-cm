@@ -31,6 +31,12 @@ class Role extends SpatieRole
 
     public const NAME_MANDOR = 'mandor';
 
+    /**
+     * The financing bank within level 4. Distinct from `supplier` (also L4):
+     * only this role owns the read-only financing dashboard (CLAUDE.md §6.5).
+     */
+    public const NAME_MITRA_PEMBIAYAAN = 'mitra_pembiayaan';
+
     protected function casts(): array
     {
         return [

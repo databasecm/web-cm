@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\FinancedProjectResource\Pages;
 
+use App\Enums\BastStatus;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\FinancedProjectResource;
 use Filament\Infolists\Components\Section;
@@ -39,6 +40,19 @@ class ViewFinancedProject extends ViewRecord
                     TextEntry::make('konsumen.name')->label('Nama')->placeholder('—'),
                     TextEntry::make('konsumen.email')->label('Email')->placeholder('—'),
                     TextEntry::make('konsumen.phone')->label('Telepon')->placeholder('—'),
+                ]),
+            // Serah terima (BAST) — read-only for the bank: it observes the
+            // handover status only and never signs (CLAUDE.md §6.5).
+            Section::make('Serah Terima (BAST)')
+                ->columns(2)
+                ->schema([
+                    TextEntry::make('bast.status')
+                        ->label('Status')
+                        ->badge()
+                        ->placeholder('Belum diterbitkan')
+                        ->formatStateUsing(fn (?BastStatus $state): ?string => $state?->label())
+                        ->color(fn (?BastStatus $state): string => $state === BastStatus::Signed ? 'success' : 'gray'),
+                    TextEntry::make('bast.signed_at')->label('Ditandatangani')->dateTime('d/m/Y H:i')->placeholder('—'),
                 ]),
         ]);
     }

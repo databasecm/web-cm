@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Consumer;
 
 use App\Enums\PaymentScheme;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\BastResource;
 use App\Http\Resources\Api\DesignResource;
 use App\Http\Resources\Api\InstallmentResource;
 use App\Http\Resources\Api\ProjectResource;
@@ -61,6 +62,17 @@ class ProjectController extends Controller
         $installments = $project->installments;
 
         return InstallmentResource::collection($installments)->additional(['meta' => ['count' => $installments->count()]]);
+    }
+
+    public function bast(Project $project): BastResource
+    {
+        Gate::authorize('view', $project);
+
+        $bast = $project->bast;
+        abort_if($bast === null, 404, 'BAST belum diterbitkan.');
+
+        return (new BastResource($bast->load(['customerSigner', 'companySigner'])))
+            ->additional(['meta' => []]);
     }
 
     public function checkout(Request $request, Project $project): AnonymousResourceCollection

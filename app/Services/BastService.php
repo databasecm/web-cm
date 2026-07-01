@@ -26,7 +26,7 @@ class BastService
      * Issue the draft BAST for a project. One per project (1—1): re-issuing is
      * refused. The project must be active (it has a contract and a schedule).
      */
-    public function issue(Project $project): Bast
+    public function issue(Project $project, ?string $file = null): Bast
     {
         if ($project->status !== ProjectStatus::Active) {
             throw BastException::projectNotActive();
@@ -36,21 +36,32 @@ class BastService
             throw BastException::alreadyIssued();
         }
 
-        return Bast::create(['project_id' => $project->id]);
+        return Bast::create(['project_id' => $project->id, 'file' => $file]);
     }
 
     /**
-     * Record one party's signature. Recording alone never advances the status
-     * (3-1 invariant); only when BOTH parties have signed does the BAST become
-     * signed and the pelunasan open. Idempotent: signing again, or after the
-     * BAST is already signed, opens nothing further.
+     * Attach/replace the BAST document reference (path/link for now — binary
+     * upload to object storage is deferred to the media phase, like designs).
      */
-    public function recordSignature(Bast $bast, BastParty $party): Bast
+    public function setFile(Bast $bast, ?string $file): Bast
     {
-        return DB::transaction(function () use ($bast, $party): Bast {
+        $bast->update(['file' => $file]);
+
+        return $bast;
+    }
+
+    /**
+     * Record one party's signature and who signed it. Recording alone never
+     * advances the status (3-1 invariant); only when BOTH parties have signed
+     * does the BAST become signed and the pelunasan open. Idempotent: signing
+     * again, or after the BAST is already signed, opens nothing further.
+     */
+    public function recordSignature(Bast $bast, BastParty $party, ?int $by = null): Bast
+    {
+        return DB::transaction(function () use ($bast, $party, $by): Bast {
             match ($party) {
-                BastParty::Customer => $bast->signed_customer = true,
-                BastParty::Company => $bast->signed_company = true,
+                BastParty::Customer => $bast->forceFill(['signed_customer' => true, 'signed_customer_by' => $by]),
+                BastParty::Company => $bast->forceFill(['signed_company' => true, 'signed_company_by' => $by]),
             };
 
             $bast->save();

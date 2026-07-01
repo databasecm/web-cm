@@ -44,7 +44,9 @@ class Bast extends Model
         'project_id',
         'file',
         'signed_customer',
+        'signed_customer_by',
         'signed_company',
+        'signed_company_by',
         'signed_at',
         'status',
     ];
@@ -84,6 +86,16 @@ class Bast extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function customerSigner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_customer_by');
+    }
+
+    public function companySigner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_company_by');
     }
 
     public function isSigned(): bool

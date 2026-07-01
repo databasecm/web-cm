@@ -6,6 +6,7 @@ use App\Enums\BastParty;
 use App\Enums\BastStatus;
 use App\Models\Bast;
 use App\Models\Project;
+use App\Services\BastPdf;
 use App\Services\BastService;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -81,6 +82,21 @@ class BastRelationManager extends RelationManager
                     ->action(function (Bast $record, array $data): void {
                         app(BastService::class)->setFile($record, $data['file'] ?? null);
                         Notification::make()->title('Dokumen diperbarui.')->success()->send();
+                    }),
+
+                // Download the signed BAST document PDF (Fase 3-7).
+                Tables\Actions\Action::make('unduhBast')
+                    ->label('Unduh BAST')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->visible(fn (Bast $record): bool => auth()->user()->can('downloadPdf', $record))
+                    ->action(function (Bast $record) {
+                        $pdf = app(BastPdf::class);
+
+                        return response()->streamDownload(
+                            fn () => print ($pdf->make($record)->output()),
+                            $pdf->filename($record),
+                            ['Content-Type' => 'application/pdf'],
+                        );
                     }),
 
                 // Record the COMPANY signature on the firm's behalf.

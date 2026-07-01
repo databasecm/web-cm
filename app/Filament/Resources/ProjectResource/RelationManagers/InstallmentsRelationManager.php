@@ -4,6 +4,8 @@ namespace App\Filament\Resources\ProjectResource\RelationManagers;
 
 use App\Enums\DueCondition;
 use App\Enums\InstallmentStatus;
+use App\Models\Installment;
+use App\Services\PaymentReceiptPdf;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -43,7 +45,23 @@ class InstallmentsRelationManager extends RelationManager
                     }),
             ])
             ->headerActions([])
-            ->actions([])
+            ->actions([
+                // Download the payment receipt (kuitansi) — only for a paid term,
+                // gated by InstallmentPolicy::downloadReceipt (Finance/O/D here).
+                Tables\Actions\Action::make('unduhKuitansi')
+                    ->label('Unduh Kuitansi')
+                    ->icon('heroicon-o-receipt-percent')
+                    ->visible(fn (Installment $record): bool => auth()->user()->can('downloadReceipt', $record))
+                    ->action(function (Installment $record) {
+                        $pdf = app(PaymentReceiptPdf::class);
+
+                        return response()->streamDownload(
+                            fn () => print ($pdf->make($record)->output()),
+                            $pdf->filename($record),
+                            ['Content-Type' => 'application/pdf'],
+                        );
+                    }),
+            ])
             ->bulkActions([]);
     }
 

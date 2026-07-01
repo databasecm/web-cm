@@ -131,14 +131,21 @@ it('settles a simulated payment through PaymentService::pay', function () {
 // verifyCallback — parses the settlement (for the Fase 3-6 webhook)
 // ---------------------------------------------------------------------------
 
-it('verifies a callback payload into a settlement', function () {
+it('verifies a signed callback payload into a settlement', function () {
+    /** @var SimulatedGateway $gateway */
     $gateway = app(PaymentGateway::class);
+    $ref = 'SIM-CHG-00000042';
+    $sig = $gateway->sign($ref);
 
-    $paid = $gateway->verifyCallback(['gateway_ref' => 'SIM-CHG-00000042', 'status' => 'paid']);
-    expect($paid->gatewayRef)->toBe('SIM-CHG-00000042')->and($paid->paid)->toBeTrue();
+    $paid = $gateway->verifyCallback(['gateway_ref' => $ref, 'status' => 'paid', 'signature' => $sig]);
+    expect($paid->gatewayRef)->toBe($ref)->and($paid->paid)->toBeTrue();
 
-    $pending = $gateway->verifyCallback(['gateway_ref' => 'SIM-CHG-00000042', 'status' => 'pending']);
+    $pending = $gateway->verifyCallback(['gateway_ref' => $ref, 'status' => 'pending', 'signature' => $sig]);
     expect($pending->paid)->toBeFalse();
+
+    // A bad signature is rejected.
+    expect(fn () => $gateway->verifyCallback(['gateway_ref' => $ref, 'status' => 'paid', 'signature' => 'nope']))
+        ->toThrow(PaymentException::class);
 });
 
 // ---------------------------------------------------------------------------

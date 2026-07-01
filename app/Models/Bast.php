@@ -28,6 +28,18 @@ class Bast extends Model
 
     protected $table = 'bast';
 
+    /**
+     * In-memory defaults matching the DB defaults, so a freshly created BAST
+     * (before reload) already reads as an unsigned draft.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'signed_customer' => false,
+        'signed_company' => false,
+        'status' => 'draft',
+    ];
+
     protected $fillable = [
         'project_id',
         'file',

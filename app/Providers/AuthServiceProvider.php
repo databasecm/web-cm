@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Ahsap;
+use App\Models\Bast;
 use App\Models\Consultation;
 use App\Models\Design;
 use App\Models\Material;
@@ -11,6 +12,7 @@ use App\Models\Rab;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Policies\AhsapPolicy;
+use App\Policies\BastPolicy;
 use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\DesignPolicy;
@@ -41,6 +43,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(Design::class, DesignPolicy::class);
         Gate::policy(Rab::class, RabPolicy::class);
+        Gate::policy(Bast::class, BastPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.
@@ -51,5 +54,9 @@ class AuthServiceProvider extends ServiceProvider
         // account-management hierarchy is never widened.
         Gate::define('createCustomerForDeal', [DealPolicy::class, 'createCustomer']);
         Gate::define('createProjectForDeal', [DealPolicy::class, 'createProject']);
+
+        // Issuing a BAST is a project-management action (no Bast instance yet),
+        // so it is a project-scoped gate rather than a BastPolicy model ability.
+        Gate::define('issueBast', [BastPolicy::class, 'issue']);
     }
 }

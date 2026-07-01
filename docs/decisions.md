@@ -5,6 +5,36 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0012 — Abstraksi payment gateway (interface + simulasi default)
+
+- **Tanggal:** 2026-07-01
+- **Status:** Diterima
+- **Konteks:** Pembayaran butuh gateway (VA/Snap) tetapi lingkungan dev/test
+  dikendalikan dari HP tanpa kredensial sandbox andal, dan menautkan SDK gateway
+  nyata sekarang menambah rahasia + kerapuhan jaringan pada test. Keputusan
+  produk (A3): abstraksikan dulu, gateway nyata menyusul.
+
+- **Keputusan:** Definisikan kontrak `App\Services\Payment\PaymentGateway`:
+  `createCharge(Installment): PaymentInstruction` dan
+  `verifyCallback(array): PaymentSettlement` (dipakai webhook Fase 3-6).
+  Implementasi default **`SimulatedGateway`** menghasilkan VA/ref **deterministik**
+  dari id termin, **tanpa panggilan jaringan**. `PaymentService` meminta interface
+  via DI untuk membuat charge (guard §7: hanya termin `unlocked`); binding default
+  di `AppServiceProvider` → `SimulatedGateway`.
+
+- **Idempoten:** satu termin `unlocked` → satu charge aktif. `createCharge`
+  mengembalikan instruksi yang sama bila `gateway_ref` sudah terisi (tak
+  membuat charge dobel). Penyelesaian bayar tetap lewat jalur tunggal
+  `PaymentService::pay()` (Fase 3-4) — `SimulatedGateway::simulatePaymentReceived()`
+  memanggilnya (resolusi lazy untuk menghindari siklus DI).
+
+- **Konsekuensi & arah:** Midtrans/Xendit nyata cukup mengimplementasikan
+  interface yang sama + di-`bind` ulang, **tanpa mengubah alur**. Verifikasi
+  signature callback tinggal di implementasi nyata (`verifyCallback`). Tidak ada
+  SDK/kredensial gateway yang dipasang sampai fase integrasi nyata.
+
+---
+
 ## ADR-0011 — CI (GitHub Actions) sebagai gerbang independen
 
 - **Tanggal:** 2026-06-30

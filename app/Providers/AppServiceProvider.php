@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\SimulatedGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,7 +16,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Default payment gateway: the credential-free simulated one (Fase 3-5,
+        // ADR-0012). A real Midtrans/Xendit gateway later rebinds this interface
+        // without touching the payment flow.
+        $this->app->bind(PaymentGateway::class, SimulatedGateway::class);
     }
 
     /**

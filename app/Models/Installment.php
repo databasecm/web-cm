@@ -28,6 +28,7 @@ class Installment extends Model
         'due_condition',
         'status',
         'va_number',
+        'gateway_ref',
         'paid_at',
     ];
 

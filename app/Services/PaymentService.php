@@ -9,6 +9,8 @@ use App\Exceptions\PaymentException;
 use App\Models\Installment;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\PaymentInstruction;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,41 @@ use Illuminate\Support\Facades\DB;
  */
 class PaymentService
 {
+    public function __construct(private PaymentGateway $gateway) {}
+
+    /**
+     * Create a payment charge for an installment through the gateway and store
+     * its reference on the term (Fase 3-5). Guards §7 exactly like pay(): only an
+     * UNLOCKED term can be charged. Idempotent: a term that already has an open
+     * charge returns that same instruction instead of creating a duplicate.
+     */
+    public function createCharge(Installment $installment): PaymentInstruction
+    {
+        if ($installment->status === InstallmentStatus::Paid) {
+            throw PaymentException::alreadyPaid();
+        }
+
+        if ($installment->status !== InstallmentStatus::Unlocked) {
+            throw PaymentException::notPayable();
+        }
+
+        // An active charge already exists → return it (no duplicate charge).
+        if ($installment->gateway_ref !== null) {
+            $amount = (string) BigDecimal::of((string) $installment->amount)->toScale(2, RoundingMode::HALF_UP);
+
+            return new PaymentInstruction($installment->va_number, $installment->gateway_ref, $amount);
+        }
+
+        $instruction = $this->gateway->createCharge($installment);
+
+        $installment->update([
+            'va_number' => $instruction->vaNumber,
+            'gateway_ref' => $instruction->gatewayRef,
+        ]);
+
+        return $instruction;
+    }
+
     /**
      * Pay a single installment: mark it paid and post the income to the cash
      * book. Returns the created cash-book Transaction.

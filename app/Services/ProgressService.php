@@ -19,8 +19,9 @@ use InvalidArgumentException;
  * Unlock rules (konsep §5, CLAUDE.md §7):
  * - checkout   : unlocked at checkout (2B-5); untouched here.
  * - progress50 : locked → unlocked once project.progress_percent ≥ 50.
- * - bast       : the pelunasan NEVER opens before a signed BAST — every attempt
- *   is rejected here; BAST is digital in Fase 3.
+ * - bast       : the pelunasan opens ONLY after the project's BAST is signed
+ *   (Fase 3-2, via openBastInstallments); any attempt before that is rejected
+ *   here (CLAUDE.md §7).
  *
  * Idempotent: only locked terms transition, so crossing 50% repeatedly never
  * double-unlocks, and an already-unlocked term stays unlocked.
@@ -78,8 +79,35 @@ class ProgressService
     }
 
     /**
+     * Open every locked bast (pelunasan) installment once the project's BAST is
+     * signed. Called by BastService when the BAST transitions to signed (Fase
+     * 3-2). Returns the number opened. Reuses the guarded unlock(), so the §7
+     * guard and idempotency hold in one place — a repeated call opens nothing
+     * further because only locked terms transition.
+     */
+    public function openBastInstallments(Project $project): int
+    {
+        $opened = 0;
+
+        $due = Installment::query()
+            ->where('project_id', $project->id)
+            ->where('due_condition', DueCondition::Bast->value)
+            ->where('status', InstallmentStatus::Locked->value)
+            ->get();
+
+        foreach ($due as $installment) {
+            $installment->setRelation('project', $project);
+            $this->unlock($installment);
+            $opened++;
+        }
+
+        return $opened;
+    }
+
+    /**
      * Unlock a single installment, enforcing the due-condition rules. Idempotent:
-     * a non-locked term is returned unchanged. A bast term is always rejected.
+     * a non-locked term is returned unchanged. A bast term is rejected unless the
+     * project's BAST is signed.
      */
     public function unlock(Installment $installment): Installment
     {
@@ -88,7 +116,7 @@ class ProgressService
         }
 
         match ($installment->due_condition) {
-            DueCondition::Bast => throw InstallmentException::bastRequired(),
+            DueCondition::Bast => $this->assertBastSigned($installment),
             DueCondition::Progress50 => $this->assertProgressReached($installment),
             DueCondition::Checkout => null,
         };
@@ -102,6 +130,19 @@ class ProgressService
     {
         if (BigDecimal::of((string) $installment->project->progress_percent)->isLessThan('50')) {
             throw InstallmentException::progressNotReached();
+        }
+    }
+
+    /**
+     * The pelunasan stays locked until the project's BAST is signed (CLAUDE.md
+     * §7). No BAST, or an unsigned one, is rejected.
+     */
+    private function assertBastSigned(Installment $installment): void
+    {
+        $bast = $installment->project->bast;
+
+        if ($bast === null || ! $bast->isSigned()) {
+            throw InstallmentException::bastRequired();
         }
     }
 }

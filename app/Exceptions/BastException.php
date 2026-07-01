@@ -18,4 +18,22 @@ class BastException extends RuntimeException
     {
         return new self('BAST hanya dapat berstatus ditandatangani setelah kedua pihak menandatangani.');
     }
+
+    /**
+     * A BAST is only issued once the project is active (has a contract and
+     * installment schedule).
+     */
+    public static function projectNotActive(): self
+    {
+        return new self('BAST hanya dapat diterbitkan untuk proyek yang sudah berjalan.');
+    }
+
+    /**
+     * One BAST per project (unique project_id, Fase 3-1). Re-issuing is refused
+     * with a clean domain error instead of a database constraint violation.
+     */
+    public static function alreadyIssued(): self
+    {
+        return new self('BAST untuk proyek ini sudah diterbitkan.');
+    }
 }

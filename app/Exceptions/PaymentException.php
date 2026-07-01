@@ -26,4 +26,13 @@ class PaymentException extends RuntimeException
     {
         return new self('Termin ini sudah dibayar.');
     }
+
+    /**
+     * A gateway callback whose signature/reference does not verify (Fase 3-6):
+     * it is rejected without touching any state.
+     */
+    public static function invalidCallback(): self
+    {
+        return new self('Callback pembayaran tidak sah.');
+    }
 }

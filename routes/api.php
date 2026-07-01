@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Consumer\ProjectController;
 use App\Http\Controllers\Api\Consumer\RabApprovalController;
 use App\Http\Controllers\Api\Consumer\RabPdfController;
 use App\Http\Controllers\Api\GuestConsultationController;
+use App\Http\Controllers\Api\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,6 +25,11 @@ Route::prefix('v1')->group(function () {
             Route::post('{token}/messages', [GuestConsultationController::class, 'append']);
             Route::get('{token}/messages', [GuestConsultationController::class, 'fetch']);
         });
+
+    // Payment gateway callback — PUBLIC (no login). This is the gateway's
+    // channel; trust comes from verifying the callback signature, not auth
+    // (Fase 3-6). Verified callbacks are settled on a queue.
+    Route::post('payments/webhook', PaymentWebhookController::class);
 
     // Consumer (Konsumen L6) channel — token auth + consumer-only; per-record
     // ownership enforced by policies (Fase 2B-7).

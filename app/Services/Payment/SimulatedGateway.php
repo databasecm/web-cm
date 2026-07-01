@@ -2,6 +2,7 @@
 
 namespace App\Services\Payment;
 
+use App\Exceptions\PaymentException;
 use App\Models\Installment;
 use App\Models\Transaction;
 use App\Models\User;
@@ -20,6 +21,12 @@ use Brick\Math\RoundingMode;
  */
 class SimulatedGateway implements PaymentGateway
 {
+    /**
+     * Stand-in signing key for the simulation. NOT a real secret — a real
+     * gateway verifies with a credential from config/env, never a hard-coded key.
+     */
+    private const SIM_SECRET = 'simulated-gateway-signing-key';
+
     public function createCharge(Installment $installment): PaymentInstruction
     {
         $amount = BigDecimal::of((string) $installment->amount)->toScale(2, RoundingMode::HALF_UP);
@@ -32,17 +39,51 @@ class SimulatedGateway implements PaymentGateway
     }
 
     /**
-     * The simulation trusts the payload (no signature to verify). A real gateway
-     * verifies the callback signature before building the settlement.
+     * Verify the callback signature (deterministic HMAC over the reference) and
+     * build the settlement. A missing reference or a bad signature is rejected —
+     * a real gateway verifies against its own credential here instead.
      *
      * @param  array<string, mixed>  $payload
      */
     public function verifyCallback(array $payload): PaymentSettlement
     {
+        $ref = (string) ($payload['gateway_ref'] ?? '');
+        $signature = (string) ($payload['signature'] ?? '');
+
+        if ($ref === '' || ! hash_equals($this->sign($ref), $signature)) {
+            throw PaymentException::invalidCallback();
+        }
+
         return new PaymentSettlement(
-            gatewayRef: (string) ($payload['gateway_ref'] ?? ''),
+            gatewayRef: $ref,
             paid: ($payload['status'] ?? null) === 'paid',
         );
+    }
+
+    /**
+     * Deterministic signature for a charge reference. Public so dev/tests can
+     * build a valid callback payload without any network call.
+     */
+    public function sign(string $gatewayRef): string
+    {
+        return hash_hmac('sha256', $gatewayRef, self::SIM_SECRET);
+    }
+
+    /**
+     * Build a signed callback payload for an installment's charge — the shape a
+     * real gateway would POST to the webhook. Deterministic, no I/O.
+     *
+     * @return array<string, string>
+     */
+    public function callbackPayload(Installment $installment, string $status = 'paid'): array
+    {
+        $ref = $this->refFor($installment);
+
+        return [
+            'gateway_ref' => $ref,
+            'status' => $status,
+            'signature' => $this->sign($ref),
+        ];
     }
 
     /**

@@ -1,0 +1,87 @@
+name: CI
+
+# Independent quality gate (ADR-0011): every PR and every push to main must pass
+# code style (Pint) and the full test suite before the change is considered safe.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Pint + Pest (PHP 8.4, MySQL 8, Redis)
+    runs-on: ubuntu-latest
+
+    # Mirror the production stack: MySQL 8 for decimal/FK parity, Redis for the
+    # guest-consultation store (phpredis). sqlite would diverge from MySQL 8 and
+    # cannot back the Redis-native code, so we run the real services.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: web_cm
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: web_cm
+      DB_USERNAME: root
+      DB_PASSWORD: ""
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, dom, curl, pdo_mysql, redis, gd, bcmath, intl
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php8.4-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php8.4-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Check code style (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Run test suite
+        run: php artisan test

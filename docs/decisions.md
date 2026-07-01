@@ -5,6 +5,34 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0011 — CI (GitHub Actions) sebagai gerbang independen
+
+- **Tanggal:** 2026-06-30
+- **Status:** Diterima
+- **Konteks:** Pengembangan inkremental dikendalikan dari HP; tiap task ber-PR.
+  Sebelum masuk domain pembayaran (Fase 3) yang sensitif, perlu **jaring
+  pengaman otomatis** yang tidak bergantung pada ingatan menjalankan test/Pint
+  secara lokal.
+
+- **Keputusan:** Tambah workflow `.github/workflows/ci.yml` yang jalan di tiap
+  **pull_request** dan **push ke `main`**. Langkah: setup **PHP 8.4** → `composer
+  install` → `vendor/bin/pint --test` (gaya kode) → `php artisan test` (suite
+  penuh). CI adalah gerbang **independen** dari reviewer manusia; keputusan
+  merge tetap di tangan pemilik proyek (bukan auto-merge).
+
+- **DB & Redis = layanan nyata (paritas produksi):** test memakai **MySQL 8**
+  (bukan sqlite) demi paritas `decimal`/FK dengan produksi, dan **Redis** +
+  ekstensi **phpredis** karena guest-consultation store native Redis dan test
+  mem-`flushdb` tiap kasus. sqlite in-memory ditolak: menyimpang dari MySQL 8 dan
+  tak bisa menopang kode Redis-native.
+
+- **Konsekuensi:** PR merah tidak boleh di-merge. Penambahan dependensi yang
+  butuh ekstensi PHP baru harus diikuti update daftar `extensions` di workflow. Caching
+  `vendor` mempercepat run. Bila kelak ada migrasi MySQL-spesifik, CI sudah
+  menjamin paritas sejak awal.
+
+---
+
 ## ADR-0010 — PDF penawaran via dompdf (pure-PHP), cermin RAB beku
 
 - **Tanggal:** 2026-06-30

@@ -5,6 +5,32 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0013 — Prasyarat go-live gateway pembayaran nyata
+
+- **Tanggal:** 2026-07-01
+- **Status:** Diterima (item pra-produksi — WAJIB sebelum integrasi gateway nyata)
+- **Konteks:** Webhook pembayaran (Fase 3-6) berjalan di atas `SimulatedGateway`
+  (ADR-0012) tanpa kredensial. Sebelum gateway nyata (Midtrans/Xendit) dipasang,
+  ada beberapa prasyarat keamanan/operasional yang **tidak boleh lolos** ke
+  produksi. Direkam agar tidak terlupa.
+
+- **Keputusan (checklist pra-go-live gateway):**
+  1. **Verifikasi signature nyata** di `verifyCallback()` implementasi gateway
+     (bukan HMAC simulasi) — pakai kredensial dari config/env, tanpa kunci
+     hard-coded.
+  2. **Throttle + allowlist IP gateway** pada endpoint `POST /payments/webhook`
+     (endpoint publik) — **WAJIB** sebelum produksi untuk membatasi abuse.
+  3. **`payment_webhook_logs`** — tabel jejak audit tiap callback (payload
+     ter-redaksi, hasil verifikasi, keputusan settle/no-op) bila butuh audit
+     gateway & debugging pasca-kejadian.
+
+- **Konsekuensi:** Selama masih `SimulatedGateway`, ketiganya belum diperlukan
+  (tak ada kredensial, tak ada trafik publik nyata). Saat menautkan gateway
+  nyata, kerjakan checklist ini lebih dulu. Idempotensi/anti-replay berbasis
+  state termin (Fase 3-6) tetap berlaku dan tak perlu diubah.
+
+---
+
 ## ADR-0012 — Abstraksi payment gateway (interface + simulasi default)
 
 - **Tanggal:** 2026-07-01

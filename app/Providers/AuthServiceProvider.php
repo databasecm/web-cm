@@ -6,6 +6,7 @@ use App\Models\Ahsap;
 use App\Models\Bast;
 use App\Models\Consultation;
 use App\Models\Design;
+use App\Models\Installment;
 use App\Models\Material;
 use App\Models\Project;
 use App\Models\Rab;
@@ -16,6 +17,7 @@ use App\Policies\BastPolicy;
 use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\DesignPolicy;
+use App\Policies\InstallmentPolicy;
 use App\Policies\MaterialPolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\ProjectPolicy;
@@ -45,6 +47,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Design::class, DesignPolicy::class);
         Gate::policy(Rab::class, RabPolicy::class);
         Gate::policy(Bast::class, BastPolicy::class);
+        Gate::policy(Installment::class, InstallmentPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.

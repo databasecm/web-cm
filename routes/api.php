@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\Consumer\BastPdfController;
 use App\Http\Controllers\Api\Consumer\BastSignatureController;
 use App\Http\Controllers\Api\Consumer\DesignApprovalController;
+use App\Http\Controllers\Api\Consumer\InstallmentReceiptController;
 use App\Http\Controllers\Api\Consumer\ProjectController;
 use App\Http\Controllers\Api\Consumer\RabApprovalController;
 use App\Http\Controllers\Api\Consumer\RabPdfController;
@@ -46,5 +48,7 @@ Route::prefix('v1')->group(function () {
         Route::post('rabs/{rab}/approve', [RabApprovalController::class, 'store']);
         Route::get('rabs/{rab}/pdf', [RabPdfController::class, 'show']);
         Route::post('bast/{bast}/sign', [BastSignatureController::class, 'store']);
+        Route::get('bast/{bast}/pdf', [BastPdfController::class, 'show']);
+        Route::get('installments/{installment}/receipt', [InstallmentReceiptController::class, 'show']);
     });
 });

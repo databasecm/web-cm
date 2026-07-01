@@ -53,4 +53,15 @@ class BastPolicy
             && $actor->level() === Role::LEVEL_KONSUMEN
             && (int) $project->konsumen_id === (int) $actor->getKey();
     }
+
+    /**
+     * Download the BAST document PDF (Fase 3-7). Only a signed BAST is a valid
+     * handover document; anyone who may view the project — the owning consumer,
+     * the Manager of its bidang, or the financing Mitra (read-only) — may
+     * download it.
+     */
+    public function downloadPdf(User $actor, Bast $bast): bool
+    {
+        return $bast->isSigned() && $this->view($actor, $bast);
+    }
 }

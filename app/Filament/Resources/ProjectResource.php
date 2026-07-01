@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\Bidang;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\ProjectResource\Pages;
+use App\Filament\Resources\ProjectResource\RelationManagers\BastRelationManager;
 use App\Filament\Resources\ProjectResource\RelationManagers\DesignsRelationManager;
 use App\Filament\Resources\ProjectResource\RelationManagers\InstallmentsRelationManager;
 use App\Filament\Resources\ProjectResource\RelationManagers\RabsRelationManager;
@@ -109,6 +110,7 @@ class ProjectResource extends Resource
             DesignsRelationManager::class,
             RabsRelationManager::class,
             InstallmentsRelationManager::class,
+            BastRelationManager::class,
         ];
     }
 

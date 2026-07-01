@@ -32,6 +32,11 @@ class Role extends SpatieRole
     public const NAME_MANDOR = 'mandor';
 
     /**
+     * The L3 role that keeps the Finance cash book (records payments/expenses).
+     */
+    public const NAME_FINANCE = 'finance';
+
+    /**
      * The financing bank within level 4. Distinct from `supplier` (also L4):
      * only this role owns the read-only financing dashboard (CLAUDE.md §6.5).
      */

@@ -144,6 +144,15 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Whether this account is Finance (level 3 carrying the finance role). Finance
+     * keeps the cash book — recording payments and expenses (CLAUDE.md §6.3).
+     */
+    public function isFinance(): bool
+    {
+        return $this->role?->name === Role::NAME_FINANCE;
+    }
+
+    /**
      * Whether this account's reach is scoped to a single business unit. Holds
      * for Management/Manager (3) and Mandor (5) that carry a `bidang`
      * (CLAUDE.md §6.4).

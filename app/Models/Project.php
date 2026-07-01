@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A project (ERD §A.2) — the sales/delivery hub a deal flows into.
@@ -91,6 +92,15 @@ class Project extends Model
     public function installments(): HasMany
     {
         return $this->hasMany(Installment::class)->orderBy('term_no');
+    }
+
+    /**
+     * The handover record (Berita Acara Serah Terima). One per project; its
+     * signed state unlocks the pelunasan installment (Fase 3).
+     */
+    public function bast(): HasOne
+    {
+        return $this->hasOne(Bast::class);
     }
 
     public function manager(): BelongsTo

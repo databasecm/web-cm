@@ -17,6 +17,7 @@ use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\DesignPolicy;
 use App\Policies\MaterialPolicy;
+use App\Policies\PaymentPolicy;
 use App\Policies\ProjectPolicy;
 use App\Policies\RabPolicy;
 use App\Policies\SupplierPolicy;
@@ -58,5 +59,9 @@ class AuthServiceProvider extends ServiceProvider
         // Issuing a BAST is a project-management action (no Bast instance yet),
         // so it is a project-scoped gate rather than a BastPolicy model ability.
         Gate::define('issueBast', [BastPolicy::class, 'issue']);
+
+        // Recording a consumer payment into the cash book: Finance + Owner/Direktur
+        // (segregation of duties — the biller is not the cash recorder, §6.3).
+        Gate::define('recordPayment', [PaymentPolicy::class, 'record']);
     }
 }

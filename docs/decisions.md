@@ -5,6 +5,27 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0014 — `bank_mitra_id` = akun user L4; tabel `bank_mitra` ditunda
+
+- **Tanggal:** 2026-07-01
+- **Status:** Diterima (menggantikan rencana rekonsiliasi ADR-0008 untuk Fase 4)
+- **Konteks:** ADR-0008 menyisakan pertanyaan apakah `projects.bank_mitra_id`
+  (dan nanti `financings.bank_mitra_id`) menunjuk **akun user L4** atau sebuah
+  tabel profil `bank_mitra` terpisah (ERD §A.4: id, user_id, name, type).
+
+- **Keputusan:** FK pembiayaan **tetap menunjuk akun user L4** — baik
+  `projects.bank_mitra_id` maupun `financings.bank_mitra_id`. Tabel `bank_mitra`
+  (profil bank) **ditunda** sampai ada kebutuhan nyata, khususnya bila **satu
+  bank punya banyak PIC/akun** (saat itu profil bank jadi entitas tersendiri dan
+  banyak user menaut ke sana). Sampai itu, satu akun L4 = satu mitra pembiayaan.
+
+- **Konsekuensi:** `BankMitraScope` (§6.5) tetap membandingkan FK ke `Auth::id()`
+  tanpa perubahan. Saat kebutuhan multi-PIC muncul, kenalkan `bank_mitra` +
+  migrasi FK di satu titik (`BankMitraScope::FOREIGN_KEY` sudah jadi titik ubah
+  tunggal). Tidak ada migrasi data sekarang.
+
+---
+
 ## ADR-0013 — Prasyarat go-live gateway pembayaran nyata
 
 - **Tanggal:** 2026-07-01

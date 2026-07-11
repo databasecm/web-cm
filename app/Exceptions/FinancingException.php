@@ -23,4 +23,21 @@ class FinancingException extends RuntimeException
     {
         return new self('Proyek ini masih memiliki pengajuan pembiayaan yang aktif.');
     }
+
+    /**
+     * Disbursement is only possible from an approved application.
+     */
+    public static function notApproved(): self
+    {
+        return new self('Pembiayaan hanya dapat dicairkan setelah disetujui.');
+    }
+
+    /**
+     * A financing is disbursed exactly once; a second disbursement is refused so
+     * the cash book never gets a duplicate income row.
+     */
+    public static function alreadyDisbursed(): self
+    {
+        return new self('Pembiayaan ini sudah dicairkan.');
+    }
 }

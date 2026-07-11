@@ -25,6 +25,9 @@ class Transaction extends Model
     /** Logical reference tag for a consumer installment payment. */
     public const REF_INSTALLMENT = 'installment';
 
+    /** Logical reference tag for a financing disbursement. */
+    public const REF_FINANCING = 'financing';
+
     protected $fillable = [
         'type',
         'category',
@@ -61,5 +64,14 @@ class Transaction extends Model
     public function scopeForInstallments(Builder $query): Builder
     {
         return $query->where('reference_type', self::REF_INSTALLMENT);
+    }
+
+    /**
+     * @param  Builder<Transaction>  $query
+     * @return Builder<Transaction>
+     */
+    public function scopeForFinancings(Builder $query): Builder
+    {
+        return $query->where('reference_type', self::REF_FINANCING);
     }
 }

@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\Consumer\BankListController;
 use App\Http\Controllers\Api\Consumer\BastPdfController;
 use App\Http\Controllers\Api\Consumer\BastSignatureController;
 use App\Http\Controllers\Api\Consumer\DesignApprovalController;
+use App\Http\Controllers\Api\Consumer\FinancingController;
 use App\Http\Controllers\Api\Consumer\InstallmentReceiptController;
 use App\Http\Controllers\Api\Consumer\ProjectController;
 use App\Http\Controllers\Api\Consumer\RabApprovalController;
@@ -50,5 +52,13 @@ Route::prefix('v1')->group(function () {
         Route::post('bast/{bast}/sign', [BastSignatureController::class, 'store']);
         Route::get('bast/{bast}/pdf', [BastPdfController::class, 'show']);
         Route::get('installments/{installment}/receipt', [InstallmentReceiptController::class, 'show']);
+
+        // Financing (Fase 4-5) — own project applications + documents.
+        Route::get('banks', [BankListController::class, 'index']);
+        Route::get('projects/{project}/financing', [FinancingController::class, 'showForProject']);
+        Route::post('projects/{project}/financing', [FinancingController::class, 'apply']);
+        Route::get('financings/{financing}', [FinancingController::class, 'show']);
+        Route::get('financings/{financing}/documents', [FinancingController::class, 'documents']);
+        Route::post('financings/{financing}/documents', [FinancingController::class, 'uploadDocument']);
     });
 });

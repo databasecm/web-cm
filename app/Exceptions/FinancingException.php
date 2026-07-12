@@ -3,10 +3,13 @@
 namespace App\Exceptions;
 
 use App\Enums\FinancingStatus;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use RuntimeException;
 
 /**
- * Raised on an invalid financing operation (Fase 4-1).
+ * Raised on an invalid financing operation (Fase 4-1). Renders as 422 on the API
+ * so the consumer channel returns a standard error envelope (Fase 4-5).
  */
 class FinancingException extends RuntimeException
 {
@@ -48,5 +51,10 @@ class FinancingException extends RuntimeException
     public static function documentsLocked(): self
     {
         return new self('Dokumen tidak dapat diubah pada pembiayaan yang sudah final.');
+    }
+
+    public function render(Request $request): JsonResponse
+    {
+        return response()->json(['message' => $this->getMessage()], 422);
     }
 }

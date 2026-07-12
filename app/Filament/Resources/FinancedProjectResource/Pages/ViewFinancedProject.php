@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\FinancedProjectResource\Pages;
 
 use App\Enums\BastStatus;
+use App\Enums\FinancingStatus;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\FinancedProjectResource;
+use App\Models\Project;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
@@ -22,6 +24,31 @@ class ViewFinancedProject extends ViewRecord
     public function infolist(Infolist $infolist): Infolist
     {
         return $infolist->schema([
+            // Financing this bank provides for the project (read-only monitoring).
+            // Financing carries BankMitraScope, so financings->first() is the
+            // bank's own latest application — never another bank's.
+            Section::make('Pembiayaan')
+                ->columns(3)
+                ->schema([
+                    TextEntry::make('financing_status')
+                        ->label('Status Pembiayaan')
+                        ->badge()
+                        ->placeholder('Belum ada pengajuan')
+                        ->state(fn (Project $record): ?string => $record->financings->first()?->status?->label())
+                        ->color(fn (Project $record): string => $record->financings->first()?->status === FinancingStatus::Disbursed
+                            ? 'success' : 'gray'),
+                    TextEntry::make('financing_amount')
+                        ->label('Nilai Pembiayaan')
+                        ->money('IDR')
+                        ->placeholder('—')
+                        ->state(fn (Project $record): ?string => $record->financings->first()?->amount),
+                    TextEntry::make('financing_disbursed_at')
+                        ->label('Dicairkan')
+                        ->placeholder('—')
+                        ->state(fn (Project $record): ?string => optional(
+                            $record->financings->first()?->statusLogs->firstWhere('status', FinancingStatus::Disbursed)
+                        )?->created_at?->format('d/m/Y H:i')),
+                ]),
             Section::make('Proyek')
                 ->columns(3)
                 ->schema([

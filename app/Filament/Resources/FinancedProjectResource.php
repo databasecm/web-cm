@@ -18,9 +18,11 @@ use Filament\Tables\Table;
  * projects are invisible (not just hidden, but absent from every query).
  *
  * The Mitra never creates, edits or deletes anything here: every mutation gate is
- * closed and the View page only renders read-only infolists. bank_mitra_id is
- * still dormant in 2B (financing lands in Fase 3/4), so this dashboard is empty
- * until a project carries a financing partner.
+ * closed and the View page only renders read-only infolists. It surfaces, for the
+ * bank's own financed projects only, the financing status/amount, project
+ * progress, the installment schedule and the BAST status — read-only monitoring
+ * (Fase 4-6). Lifecycle actions live solely in the financing portal (4-4); this
+ * dashboard never mutates a project, installment or BAST (§6.5).
  */
 class FinancedProjectResource extends Resource
 {
@@ -92,6 +94,12 @@ class FinancedProjectResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('progress_percent')->label('Progres')->suffix(' %')->sortable(),
                 Tables\Columns\TextColumn::make('contract_value')->label('Nilai Kontrak')->money('IDR')->placeholder('—'),
+                Tables\Columns\TextColumn::make('financing_status')
+                    ->label('Pembiayaan')
+                    ->badge()
+                    ->placeholder('—')
+                    // Financing carries BankMitraScope → this is the bank's own.
+                    ->getStateUsing(fn (Project $record): ?string => $record->financings->first()?->status?->label()),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')

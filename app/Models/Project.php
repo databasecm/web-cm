@@ -103,6 +103,16 @@ class Project extends Model
         return $this->hasOne(Bast::class);
     }
 
+    /**
+     * Financing applications, latest first. Financing carries BankMitraScope, so
+     * for a bank actor this relation only ever returns the bank's own
+     * financings for this project (Fase 4).
+     */
+    public function financings(): HasMany
+    {
+        return $this->hasMany(Financing::class)->orderByDesc('id');
+    }
+
     public function manager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'manager_id');

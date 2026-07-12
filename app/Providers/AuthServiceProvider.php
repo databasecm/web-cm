@@ -7,6 +7,7 @@ use App\Models\Bast;
 use App\Models\Consultation;
 use App\Models\Design;
 use App\Models\Financing;
+use App\Models\FinancingDocument;
 use App\Models\Installment;
 use App\Models\Material;
 use App\Models\Project;
@@ -18,6 +19,7 @@ use App\Policies\BastPolicy;
 use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\DesignPolicy;
+use App\Policies\FinancingDocumentPolicy;
 use App\Policies\FinancingPolicy;
 use App\Policies\InstallmentPolicy;
 use App\Policies\MaterialPolicy;
@@ -51,6 +53,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Bast::class, BastPolicy::class);
         Gate::policy(Installment::class, InstallmentPolicy::class);
         Gate::policy(Financing::class, FinancingPolicy::class);
+        Gate::policy(FinancingDocument::class, FinancingDocumentPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.
@@ -73,5 +76,9 @@ class AuthServiceProvider extends ServiceProvider
         // Applying for financing on a project (no Financing instance yet) — the
         // owning consumer. Full application flow lands in Fase 4-5.
         Gate::define('applyFinancing', [FinancingPolicy::class, 'apply']);
+
+        // Uploading a document for a financing (no document instance yet) — the
+        // owning consumer.
+        Gate::define('uploadFinancingDocument', [FinancingDocumentPolicy::class, 'upload']);
     }
 }

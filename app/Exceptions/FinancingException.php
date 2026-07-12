@@ -40,4 +40,13 @@ class FinancingException extends RuntimeException
     {
         return new self('Pembiayaan ini sudah dicairkan.');
     }
+
+    /**
+     * Documents of a final financing (rejected/disbursed) are immutable — they
+     * can no longer be uploaded or reviewed.
+     */
+    public static function documentsLocked(): self
+    {
+        return new self('Dokumen tidak dapat diubah pada pembiayaan yang sudah final.');
+    }
 }

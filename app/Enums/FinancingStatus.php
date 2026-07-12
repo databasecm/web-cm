@@ -5,11 +5,13 @@ namespace App\Enums;
 /**
  * Lifecycle of a financing application (ERD §A.4, Fase 4-1):
  *
- *   submitted ─┬─▶ docs_required ─┬─▶ interview ─┬─▶ approved ─▶ disbursed
- *              ├──────────────────┴──────────────┴─▶ rejected
+ *   submitted ─┬─▶ docs_required ⇄ interview ─▶ approved ─▶ disbursed
+ *              ├──────────────────┴────────────┴─▶ rejected
  *              └─▶ interview / approved / rejected (shortcuts)
  *
- * `rejected` and `disbursed` are terminal — no further transition.
+ * docs_required and interview may bounce back and forth: after an interview the
+ * bank can still ask for more documents (interview → docs_required). `rejected`
+ * and `disbursed` are terminal — no further transition.
  */
 enum FinancingStatus: string
 {
@@ -54,7 +56,7 @@ enum FinancingStatus: string
         return match ($this) {
             self::Submitted => [self::DocsRequired, self::Interview, self::Approved, self::Rejected],
             self::DocsRequired => [self::Interview, self::Approved, self::Rejected],
-            self::Interview => [self::Approved, self::Rejected],
+            self::Interview => [self::DocsRequired, self::Approved, self::Rejected],
             self::Approved => [self::Disbursed],
             self::Rejected, self::Disbursed => [],
         };

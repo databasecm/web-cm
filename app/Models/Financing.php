@@ -96,6 +96,11 @@ class Financing extends Model
         return $this->hasMany(FinancingStatusLog::class)->orderBy('id');
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(FinancingDocument::class)->orderBy('id');
+    }
+
     public function isFinal(): bool
     {
         return $this->status->isFinal();

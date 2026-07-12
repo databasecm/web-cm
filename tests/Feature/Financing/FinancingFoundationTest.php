@@ -79,6 +79,18 @@ it('walks legal transitions and logs each one', function () {
         ->toBe([FinancingStatus::Interview, FinancingStatus::Approved, FinancingStatus::Disbursed]);
 });
 
+it('allows bouncing between interview and docs_required', function () {
+    // After an interview the bank can still ask for more documents (4-4 fix).
+    $financing = Financing::factory()->status(FinancingStatus::Interview)->create();
+
+    $financing->transitionTo(FinancingStatus::DocsRequired);
+    expect($financing->fresh()->status)->toBe(FinancingStatus::DocsRequired);
+
+    $financing->transitionTo(FinancingStatus::Interview);
+    expect($financing->fresh()->status)->toBe(FinancingStatus::Interview)
+        ->and($financing->statusLogs()->count())->toBe(2);
+});
+
 it('rejects an illegal jump and any move out of a final state', function () {
     $submitted = Financing::factory()->create();
     expect(fn () => $submitted->transitionTo(FinancingStatus::Disbursed))->toThrow(FinancingException::class);

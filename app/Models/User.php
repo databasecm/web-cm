@@ -153,6 +153,24 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Whether this account is HR (level 3 carrying the hr role). HR manages the
+     * employee master and payroll (CLAUDE.md §7).
+     */
+    public function isHR(): bool
+    {
+        return $this->role?->name === Role::NAME_HR;
+    }
+
+    /**
+     * Whether this account is a Mandor (level 5). Manages field data — attendance
+     * and employees — within its bidang (CLAUDE.md §6.4).
+     */
+    public function isMandor(): bool
+    {
+        return $this->level() === Role::LEVEL_MANDOR;
+    }
+
+    /**
      * Whether this account's reach is scoped to a single business unit. Holds
      * for Management/Manager (3) and Mandor (5) that carry a `bidang`
      * (CLAUDE.md §6.4).

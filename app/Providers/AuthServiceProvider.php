@@ -6,6 +6,7 @@ use App\Models\Ahsap;
 use App\Models\Bast;
 use App\Models\Consultation;
 use App\Models\Design;
+use App\Models\Employee;
 use App\Models\Financing;
 use App\Models\FinancingDocument;
 use App\Models\Installment;
@@ -19,6 +20,7 @@ use App\Policies\BastPolicy;
 use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\DesignPolicy;
+use App\Policies\EmployeePolicy;
 use App\Policies\FinancingDocumentPolicy;
 use App\Policies\FinancingPolicy;
 use App\Policies\InstallmentPolicy;
@@ -54,6 +56,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Installment::class, InstallmentPolicy::class);
         Gate::policy(Financing::class, FinancingPolicy::class);
         Gate::policy(FinancingDocument::class, FinancingDocumentPolicy::class);
+        Gate::policy(Employee::class, EmployeePolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.

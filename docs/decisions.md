@@ -5,6 +5,28 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0015 — Integrasi media (object storage) sebagai satu task fokus tersendiri
+
+- **Tanggal:** 2026-07-12
+- **Status:** Diterima (dijadwalkan setelah Fase 5, sebelum go-production)
+- **Konteks:** Sejak Fase 2, setiap kolom berkas disimpan sebagai **path/link
+  string** dan upload biner **ditunda**: `designs.file`, `bast.file`,
+  `financing_documents.file`, dan (Fase 5-3) `report_media`. Menyebar integrasi
+  object storage ke tiap modul akan tidak konsisten dan berulang.
+
+- **Keputusan:** Kumpulkan semua penunda media ke **satu task "Integrasi Media"**
+  yang dikerjakan **setelah Fase 5** (sebelum produksi). Task itu memasang pola
+  tunggal: **upload biner → object storage S3-compatible → signed URL**, lalu
+  memigrasikan seluruh kolom `*.file` yang ada (designs, BAST, dokumen
+  pembiayaan, report_media) ke pola yang sama. Sampai itu, semua tetap path/link.
+
+- **Konsekuensi:** Model & policy yang menyimpan `file` sudah menyembunyikan
+  pointer sensitif (ADR dokumen 4-3) sehingga siap menerima signed URL tanpa ubah
+  kontrak. Kolom `file` tetap `string` nullable; hanya makna nilainya yang
+  berubah (path lokal → key object storage) saat task media dikerjakan.
+
+---
+
 ## ADR-0014 — `bank_mitra_id` = akun user L4; tabel `bank_mitra` ditunda
 
 - **Tanggal:** 2026-07-01

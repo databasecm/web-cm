@@ -36,6 +36,9 @@ class Role extends SpatieRole
      */
     public const NAME_FINANCE = 'finance';
 
+    /** The L3 role that manages employees & payroll. */
+    public const NAME_HR = 'hr';
+
     /**
      * The financing bank within level 4. Distinct from `supplier` (also L4):
      * only this role owns the read-only financing dashboard (CLAUDE.md §6.5).

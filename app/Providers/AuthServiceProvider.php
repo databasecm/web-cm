@@ -6,6 +6,7 @@ use App\Models\Ahsap;
 use App\Models\Attendance;
 use App\Models\Bast;
 use App\Models\Consultation;
+use App\Models\DailyReport;
 use App\Models\Design;
 use App\Models\Employee;
 use App\Models\Financing;
@@ -20,6 +21,7 @@ use App\Policies\AhsapPolicy;
 use App\Policies\AttendancePolicy;
 use App\Policies\BastPolicy;
 use App\Policies\ConsultationPolicy;
+use App\Policies\DailyReportPolicy;
 use App\Policies\DealPolicy;
 use App\Policies\DesignPolicy;
 use App\Policies\EmployeePolicy;
@@ -60,6 +62,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(FinancingDocument::class, FinancingDocumentPolicy::class);
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(Attendance::class, AttendancePolicy::class);
+        Gate::policy(DailyReport::class, DailyReportPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.
@@ -90,5 +93,9 @@ class AuthServiceProvider extends ServiceProvider
         // Recording attendance for a worker (no Attendance instance yet) — a
         // Mandor in the worker's bidang, or HR/overseers.
         Gate::define('recordAttendance', [AttendancePolicy::class, 'record']);
+
+        // Filing a daily report on a project (no report instance yet) — a Mandor
+        // in the project's bidang, or overseers.
+        Gate::define('createDailyReport', [DailyReportPolicy::class, 'create']);
     }
 }

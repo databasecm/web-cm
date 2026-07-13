@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Ahsap;
+use App\Models\Attendance;
 use App\Models\Bast;
 use App\Models\Consultation;
 use App\Models\Design;
@@ -16,6 +17,7 @@ use App\Models\Rab;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Policies\AhsapPolicy;
+use App\Policies\AttendancePolicy;
 use App\Policies\BastPolicy;
 use App\Policies\ConsultationPolicy;
 use App\Policies\DealPolicy;
@@ -57,6 +59,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Financing::class, FinancingPolicy::class);
         Gate::policy(FinancingDocument::class, FinancingDocumentPolicy::class);
         Gate::policy(Employee::class, EmployeePolicy::class);
+        Gate::policy(Attendance::class, AttendancePolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.
@@ -83,5 +86,9 @@ class AuthServiceProvider extends ServiceProvider
         // Uploading a document for a financing (no document instance yet) — the
         // owning consumer.
         Gate::define('uploadFinancingDocument', [FinancingDocumentPolicy::class, 'upload']);
+
+        // Recording attendance for a worker (no Attendance instance yet) — a
+        // Mandor in the worker's bidang, or HR/overseers.
+        Gate::define('recordAttendance', [AttendancePolicy::class, 'record']);
     }
 }

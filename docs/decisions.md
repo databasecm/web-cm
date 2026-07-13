@@ -5,6 +5,26 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ---
 
+## ADR-0016 — Payroll mengunci absensi periode yang sudah dibayar
+
+- **Tanggal:** 2026-07-13
+- **Status:** Diterima (WAJIB ditegakkan di Fase 6 payroll)
+- **Konteks:** Absensi (Fase 5-2) adalah sumber payroll. Mandor boleh mengoreksi
+  status hari (mis-entry) — tetapi mengubah absensi yang **sudah dibayar** akan
+  merusak integritas payroll. Alternatifnya "batas waktu koreksi keras" (mis. H+2)
+  itu arbitrer dan bisa memblok koreksi sah sebelum bayar.
+
+- **Keputusan:** Koreksi absensi **terbuka & teraudit** sampai payroll periode itu
+  **diproses/dibayar**. Saat payroll mingguan (Sabtu) diproses, absensi periode
+  tersebut **terkunci** — tak bisa diubah lagi. Ini menggantikan batas waktu keras.
+
+- **Konsekuensi:** **Fase 6 (payroll) WAJIB** menegakkan penguncian ini:
+  `AttendanceService::correct()` menolak absensi yang periodenya sudah masuk
+  payroll dibayar (mis. cek terhadap tabel payroll/payslip periode). Sampai
+  payroll ada, koreksi terbuka. Catatan ini menjadi acceptance-criteria Fase 6.
+
+---
+
 ## ADR-0015 — Integrasi media (object storage) sebagai satu task fokus tersendiri
 
 - **Tanggal:** 2026-07-12

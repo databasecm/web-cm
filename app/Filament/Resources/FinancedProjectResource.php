@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\Bidang;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\FinancedProjectResource\Pages;
+use App\Filament\Resources\FinancedProjectResource\RelationManagers\DailyReportsRelationManager;
 use App\Filament\Resources\ProjectResource\RelationManagers\InstallmentsRelationManager;
 use App\Models\Project;
 use Filament\Resources\Resource;
@@ -116,9 +117,12 @@ class FinancedProjectResource extends Resource
 
     public static function getRelations(): array
     {
-        // Reuse the project's read-only installment schedule (isReadOnly()).
+        // Read-only monitoring surfaces: installment schedule + daily field
+        // reports. Both isReadOnly(); worker attendance/wages (HR data) are not
+        // surfaced to the bank.
         return [
             InstallmentsRelationManager::class,
+            DailyReportsRelationManager::class,
         ];
     }
 

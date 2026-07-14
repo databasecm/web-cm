@@ -30,4 +30,13 @@ class AttendanceException extends RuntimeException
     {
         return new self('Karyawan dan proyek harus berada pada bidang yang sama.');
     }
+
+    /**
+     * The period's payroll has been paid, so its attendance is frozen and can no
+     * longer be added to or corrected (ADR-0016).
+     */
+    public static function periodLocked(): self
+    {
+        return new self('Absensi periode ini terkunci karena payroll sudah dibayar.');
+    }
 }

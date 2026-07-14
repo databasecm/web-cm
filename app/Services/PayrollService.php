@@ -6,9 +6,15 @@ use App\Enums\EmployeeStatus;
 use App\Enums\EmployeeType;
 use App\Enums\PayrollStatus;
 use App\Enums\PayrollType;
+use App\Enums\TransactionCategory;
+use App\Enums\TransactionType;
+use App\Exceptions\PayrollException;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Payroll;
+use App\Models\Payslip;
+use App\Models\Transaction;
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Database\Eloquent\Collection;
@@ -31,6 +37,44 @@ use Illuminate\Support\Facades\DB;
 class PayrollService
 {
     public function __construct(private AttendanceService $attendance) {}
+
+    /**
+     * Pay a payroll run (Fase 6-2): post ONE cash-book salary expense for the
+     * whole run and mark it paid. The period's attendance then locks (ADR-0016).
+     *
+     * A single aggregate expense (Σ net, reference = payroll) is the right
+     * cash-book grain: one weekly payout is one cash outflow event; the per-worker
+     * breakdown lives in payslips. Idempotent + race-safe (lockForUpdate): a
+     * payroll already paid is refused, so a double payment never doubles the
+     * expense.
+     */
+    public function pay(Payroll $payroll, ?User $by = null): Transaction
+    {
+        return DB::transaction(function () use ($payroll, $by): Transaction {
+            $locked = Payroll::query()->whereKey($payroll->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($locked->status === PayrollStatus::Paid) {
+                throw PayrollException::alreadyPaid();
+            }
+
+            $total = $locked->payslips()->get()
+                ->reduce(fn (BigDecimal $c, Payslip $p) => $c->plus($p->net), BigDecimal::zero())
+                ->toScale(2, RoundingMode::HALF_UP);
+
+            $locked->update(['status' => PayrollStatus::Paid, 'paid_at' => now()]);
+
+            return Transaction::create([
+                'type' => TransactionType::Expense,
+                'category' => TransactionCategory::Gaji,
+                'amount' => (string) $total,
+                'reference_type' => Transaction::REF_PAYROLL,
+                'reference_id' => $locked->id,
+                'description' => "Pembayaran payroll {$locked->period_start->toDateString()} s/d {$locked->period_end->toDateString()}",
+                'recorded_by' => $by?->id,
+                'date' => now()->toDateString(),
+            ]);
+        });
+    }
 
     public function generate(string $periodStart, string $periodEnd, ?int $by = null): Payroll
     {
@@ -90,7 +134,10 @@ class PayrollService
     private function workersInPeriod(string $periodStart, string $periodEnd)
     {
         $ids = Attendance::query()
-            ->whereBetween('date', [$periodStart, $periodEnd])
+            // whereDate bounds so a worker present only on the payday Saturday
+            // (period_end) is still included despite the date cast's time part.
+            ->whereDate('date', '>=', $periodStart)
+            ->whereDate('date', '<=', $periodEnd)
             ->distinct()
             ->pluck('employee_id');
 

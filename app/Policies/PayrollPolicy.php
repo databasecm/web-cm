@@ -34,6 +34,16 @@ class PayrollPolicy
         return $this->isOverseer($actor) || $actor->isHR();
     }
 
+    /**
+     * Pay a payroll run (posts the cash expense) — Finance or an overseer. HR
+     * does NOT pay (segregation of duties, §6.3 — HR only generates). Exposed via
+     * the payPayroll gate.
+     */
+    public function pay(User $actor, Payroll $payroll): bool
+    {
+        return $this->isOverseer($actor) || $actor->isFinance();
+    }
+
     protected function isOverseer(User $actor): bool
     {
         return in_array($actor->level(), [Role::LEVEL_OWNER, Role::LEVEL_DIREKTUR], true);

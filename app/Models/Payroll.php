@@ -26,6 +26,7 @@ class Payroll extends Model
         'period_end',
         'type',
         'status',
+        'paid_at',
     ];
 
     /**
@@ -38,6 +39,7 @@ class Payroll extends Model
             'period_end' => 'date',
             'type' => PayrollType::class,
             'status' => PayrollStatus::class,
+            'paid_at' => 'datetime',
         ];
     }
 

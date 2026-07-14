@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Enums\AttendanceStatus;
 use App\Enums\EmployeeStatus;
+use App\Enums\PayrollStatus;
 use App\Exceptions\AttendanceException;
 use App\Models\Attendance;
 use App\Models\Employee;
+use App\Models\Payroll;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +53,9 @@ class AttendanceService
             throw AttendanceException::bidangMismatch();
         }
 
+        // ADR-0016: a paid payroll locks its period's attendance — no new rows.
+        $this->assertPeriodNotLocked($date);
+
         return DB::transaction(function () use ($employee, $project, $date, $status, $by, $note, $clientId): Attendance {
             $exists = Attendance::query()
                 ->where('employee_id', $employee->id)
@@ -84,6 +89,9 @@ class AttendanceService
      */
     public function correct(Attendance $attendance, AttendanceStatus $status, ?User $by = null, ?string $note = null): Attendance
     {
+        // ADR-0016: once the period's payroll is paid, its attendance is locked.
+        $this->assertPeriodNotLocked($attendance->date->toDateString());
+
         $attendance->update([
             'status' => $status,
             'recorded_by' => $by?->id ?? $attendance->recorded_by,
@@ -91,6 +99,26 @@ class AttendanceService
         ]);
 
         return $attendance;
+    }
+
+    /**
+     * Whether the given date falls inside a paid payroll period — such
+     * attendance is frozen (ADR-0016).
+     */
+    public function isPeriodLocked(string $date): bool
+    {
+        return Payroll::query()
+            ->where('status', PayrollStatus::Paid->value)
+            ->whereDate('period_start', '<=', $date)
+            ->whereDate('period_end', '>=', $date)
+            ->exists();
+    }
+
+    private function assertPeriodNotLocked(string $date): void
+    {
+        if ($this->isPeriodLocked($date)) {
+            throw AttendanceException::periodLocked();
+        }
     }
 
     /**
@@ -102,7 +130,10 @@ class AttendanceService
         return Attendance::query()
             ->where('employee_id', $employee->id)
             ->where('status', AttendanceStatus::Hadir->value)
-            ->whereBetween('date', [$from, $to])
+            // whereDate bounds so the last day (payday Saturday = period_end) is
+            // included despite the date cast's time component.
+            ->whereDate('date', '>=', $from)
+            ->whereDate('date', '<=', $to)
             ->count();
     }
 }

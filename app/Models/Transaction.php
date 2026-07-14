@@ -28,6 +28,9 @@ class Transaction extends Model
     /** Logical reference tag for a financing disbursement. */
     public const REF_FINANCING = 'financing';
 
+    /** Logical reference tag for a payroll payout. */
+    public const REF_PAYROLL = 'payroll';
+
     protected $fillable = [
         'type',
         'category',
@@ -73,5 +76,14 @@ class Transaction extends Model
     public function scopeForFinancings(Builder $query): Builder
     {
         return $query->where('reference_type', self::REF_FINANCING);
+    }
+
+    /**
+     * @param  Builder<Transaction>  $query
+     * @return Builder<Transaction>
+     */
+    public function scopeForPayrolls(Builder $query): Builder
+    {
+        return $query->where('reference_type', self::REF_PAYROLL);
     }
 }

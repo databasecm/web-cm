@@ -113,6 +113,15 @@ class Project extends Model
         return $this->hasMany(Financing::class)->orderByDesc('id');
     }
 
+    /**
+     * Daily field reports, latest first. Used for read-only monitoring (bank
+     * dashboard, Fase 5-5) and the consumer's project page.
+     */
+    public function dailyReports(): HasMany
+    {
+        return $this->hasMany(DailyReport::class)->orderByDesc('date');
+    }
+
     public function manager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'manager_id');

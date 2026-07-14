@@ -17,6 +17,7 @@ use App\Models\Payroll;
 use App\Models\Project;
 use App\Models\Rab;
 use App\Models\Supplier;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Policies\AhsapPolicy;
 use App\Policies\AttendancePolicy;
@@ -35,6 +36,7 @@ use App\Policies\PayrollPolicy;
 use App\Policies\ProjectPolicy;
 use App\Policies\RabPolicy;
 use App\Policies\SupplierPolicy;
+use App\Policies\TransactionPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -66,6 +68,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Attendance::class, AttendancePolicy::class);
         Gate::policy(DailyReport::class, DailyReportPolicy::class);
         Gate::policy(Payroll::class, PayrollPolicy::class);
+        Gate::policy(Transaction::class, TransactionPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.

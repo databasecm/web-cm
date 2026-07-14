@@ -13,6 +13,7 @@ use App\Models\Financing;
 use App\Models\FinancingDocument;
 use App\Models\Installment;
 use App\Models\Material;
+use App\Models\Payroll;
 use App\Models\Project;
 use App\Models\Rab;
 use App\Models\Supplier;
@@ -30,6 +31,7 @@ use App\Policies\FinancingPolicy;
 use App\Policies\InstallmentPolicy;
 use App\Policies\MaterialPolicy;
 use App\Policies\PaymentPolicy;
+use App\Policies\PayrollPolicy;
 use App\Policies\ProjectPolicy;
 use App\Policies\RabPolicy;
 use App\Policies\SupplierPolicy;
@@ -63,6 +65,7 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(Attendance::class, AttendancePolicy::class);
         Gate::policy(DailyReport::class, DailyReportPolicy::class);
+        Gate::policy(Payroll::class, PayrollPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.
@@ -97,5 +100,9 @@ class AuthServiceProvider extends ServiceProvider
         // Filing a daily report on a project (no report instance yet) — a Mandor
         // in the project's bidang, or overseers.
         Gate::define('createDailyReport', [DailyReportPolicy::class, 'create']);
+
+        // Generating a payroll run (no Payroll instance yet) — HR or overseers
+        // (Finance pays it, not generates — segregation of duties, §6.3/§7).
+        Gate::define('generatePayroll', [PayrollPolicy::class, 'generate']);
     }
 }

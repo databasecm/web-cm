@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\Consumer\ProjectController;
 use App\Http\Controllers\Api\Consumer\RabApprovalController;
 use App\Http\Controllers\Api\Consumer\RabPdfController;
 use App\Http\Controllers\Api\GuestConsultationController;
+use App\Http\Controllers\Api\Mandor\AttendanceSyncController;
+use App\Http\Controllers\Api\Mandor\DailyReportSyncController;
+use App\Http\Controllers\Api\Mandor\FieldContextController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -60,5 +63,15 @@ Route::prefix('v1')->group(function () {
         Route::get('financings/{financing}', [FinancingController::class, 'show']);
         Route::get('financings/{financing}/documents', [FinancingController::class, 'documents']);
         Route::post('financings/{financing}/documents', [FinancingController::class, 'uploadDocument']);
+    });
+
+    // Mandor (L5) field channel — token auth + mandor-only; bidang-scoped, with
+    // idempotent offline batch sync (Fase 5-4).
+    Route::middleware(['auth:sanctum', 'mandor'])->prefix('mandor')->group(function () {
+        Route::get('projects', [FieldContextController::class, 'projects']);
+        Route::get('employees', [FieldContextController::class, 'employees']);
+        Route::get('attendances', [AttendanceSyncController::class, 'index']);
+        Route::post('attendances/sync', [AttendanceSyncController::class, 'store']);
+        Route::post('daily-reports/sync', [DailyReportSyncController::class, 'store']);
     });
 });

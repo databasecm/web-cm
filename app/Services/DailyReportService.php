@@ -24,9 +24,18 @@ class DailyReportService
     /**
      * File a daily report for a project (one per project per day).
      */
-    public function create(Project $project, User $mandor, string $date, string $description, ?string $progressNote = null): DailyReport
+    public function create(Project $project, User $mandor, string $date, string $description, ?string $progressNote = null, ?string $clientId = null): DailyReport
     {
-        return DB::transaction(function () use ($project, $mandor, $date, $description, $progressNote): DailyReport {
+        // Idempotent offline sync: a retried item (same client_id) returns the
+        // already-created report (wasRecentlyCreated = false) — no duplicate.
+        if ($clientId !== null) {
+            $existing = DailyReport::query()->where('client_id', $clientId)->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
+
+        return DB::transaction(function () use ($project, $mandor, $date, $description, $progressNote, $clientId): DailyReport {
             $exists = DailyReport::query()
                 ->where('project_id', $project->id)
                 ->whereDate('date', $date)
@@ -38,6 +47,7 @@ class DailyReportService
             }
 
             return DailyReport::create([
+                'client_id' => $clientId,
                 'project_id' => $project->id,
                 'mandor_id' => $mandor->id,
                 'date' => $date,

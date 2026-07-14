@@ -20,6 +20,7 @@ class Attendance extends Model
     use Auditable, HasFactory;
 
     protected $fillable = [
+        'client_id',
         'employee_id',
         'project_id',
         'date',

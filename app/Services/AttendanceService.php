@@ -31,7 +31,18 @@ class AttendanceService
         AttendanceStatus $status,
         ?User $by = null,
         ?string $note = null,
+        ?string $clientId = null,
     ): Attendance {
+        // Idempotent offline sync: a retried item (same client_id) returns the
+        // already-created row unchanged (wasRecentlyCreated = false) — no
+        // duplicate, no error (Fase 5-4).
+        if ($clientId !== null) {
+            $existing = Attendance::query()->where('client_id', $clientId)->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
+
         if ($employee->status !== EmployeeStatus::Aktif) {
             throw AttendanceException::employeeInactive();
         }
@@ -40,7 +51,7 @@ class AttendanceService
             throw AttendanceException::bidangMismatch();
         }
 
-        return DB::transaction(function () use ($employee, $project, $date, $status, $by, $note): Attendance {
+        return DB::transaction(function () use ($employee, $project, $date, $status, $by, $note, $clientId): Attendance {
             $exists = Attendance::query()
                 ->where('employee_id', $employee->id)
                 ->whereDate('date', $date)
@@ -52,6 +63,7 @@ class AttendanceService
             }
 
             return Attendance::create([
+                'client_id' => $clientId,
                 'employee_id' => $employee->id,
                 'project_id' => $project->id,
                 'date' => $date,

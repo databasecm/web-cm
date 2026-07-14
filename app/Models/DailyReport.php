@@ -21,6 +21,7 @@ class DailyReport extends Model
     use Auditable, HasFactory;
 
     protected $fillable = [
+        'client_id',
         'project_id',
         'mandor_id',
         'date',

@@ -45,9 +45,15 @@ class MaterialPolicy
         return $this->isInternal($actor);
     }
 
+    /**
+     * Add a material to the catalog. Owner/Direktur/Manager manage the catalog;
+     * a Mandor may ADD field materials it finds/buys ad-hoc (Fase 6-5b) — this is
+     * catalog input only and never touches the cash book. Mandor cannot edit or
+     * delete existing materials (that stays with managers).
+     */
     public function create(User $actor): bool
     {
-        return $this->canManage($actor);
+        return $this->canManage($actor) || $actor->isMandor();
     }
 
     public function update(User $actor): bool

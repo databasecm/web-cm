@@ -56,11 +56,16 @@ it('lets only Owner, Direktur and Manager manage materials', function () {
             ->and(MaterialResource::canEdit($material))->toBeTrue("{$name} edit");
     }
 
-    foreach (['finance', 'hr', 'mandor'] as $name) {
-        $this->actingAs(materialUser($name, $name === 'mandor' ? Bidang::Cufid : null));
+    foreach (['finance', 'hr'] as $name) {
+        $this->actingAs(materialUser($name));
         expect(MaterialResource::canCreate())->toBeFalse("{$name} create")
             ->and(MaterialResource::canEdit($material))->toBeFalse("{$name} edit");
     }
+
+    // Mandor may ADD field materials (Fase 6-5b) but still cannot edit them.
+    $this->actingAs(materialUser('mandor', Bidang::Cufid));
+    expect(MaterialResource::canCreate())->toBeTrue('mandor create')
+        ->and(MaterialResource::canEdit($material))->toBeFalse('mandor edit');
 });
 
 // ---------------------------------------------------------------------------

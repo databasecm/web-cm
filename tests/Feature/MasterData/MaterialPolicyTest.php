@@ -50,11 +50,18 @@ it('lets only Owner, Direktur and Manager manage materials', function () {
     expect($manager->can('create', Material::class))->toBeTrue()
         ->and($manager->can('update', $material))->toBeTrue();
 
-    // Finance/HR/Mandor can view but never manage.
-    foreach (['finance', 'hr', 'mandor'] as $name) {
-        $actor = matActor($name, $name === 'mandor' ? Bidang::Cufid : null);
+    // Finance/HR can view but never manage.
+    foreach (['finance', 'hr'] as $name) {
+        $actor = matActor($name);
         expect($actor->can('create', Material::class))->toBeFalse("{$name} must not create")
             ->and($actor->can('update', $material))->toBeFalse("{$name} must not update")
             ->and($actor->can('delete', $material))->toBeFalse("{$name} must not delete");
     }
+
+    // Mandor may ADD field materials to the catalog (Fase 6-5b) but still cannot
+    // edit or delete existing entries.
+    $mandor = matActor('mandor', Bidang::Cufid);
+    expect($mandor->can('create', Material::class))->toBeTrue()
+        ->and($mandor->can('update', $material))->toBeFalse()
+        ->and($mandor->can('delete', $material))->toBeFalse();
 });

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\GuestConsultationController;
 use App\Http\Controllers\Api\Mandor\AttendanceSyncController;
 use App\Http\Controllers\Api\Mandor\DailyReportSyncController;
 use App\Http\Controllers\Api\Mandor\FieldContextController;
+use App\Http\Controllers\Api\Mandor\MaterialController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -73,5 +74,8 @@ Route::prefix('v1')->group(function () {
         Route::get('attendances', [AttendanceSyncController::class, 'index']);
         Route::post('attendances/sync', [AttendanceSyncController::class, 'store']);
         Route::post('daily-reports/sync', [DailyReportSyncController::class, 'store']);
+
+        // Field material catalog input (Fase 6-5b) — catalog only, no cash.
+        Route::post('materials', [MaterialController::class, 'store']);
     });
 });

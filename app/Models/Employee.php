@@ -59,4 +59,16 @@ class Employee extends Model
     {
         return $this->hasMany(EmployeeStatusLog::class)->orderBy('id');
     }
+
+    /** Daily attendance rows — the payroll source of truth (read-only for HR). */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    /** Payslips across every payroll run this worker appears in. */
+    public function payslips(): HasMany
+    {
+        return $this->hasMany(Payslip::class);
+    }
 }

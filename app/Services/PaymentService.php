@@ -98,6 +98,7 @@ class PaymentService
                 'amount' => (string) $amount,
                 'reference_type' => Transaction::REF_INSTALLMENT,
                 'reference_id' => $locked->id,
+                'project_id' => $locked->project_id, // per-project P&L (Fase 6-3b)
                 'description' => "Pembayaran termin {$locked->term_no} ({$locked->label}) proyek #{$locked->project_id}",
                 'recorded_by' => $by?->id,
                 'date' => now()->toDateString(),

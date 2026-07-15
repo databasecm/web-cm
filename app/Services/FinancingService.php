@@ -91,6 +91,7 @@ class FinancingService
                 'amount' => $amount,
                 'reference_type' => Transaction::REF_FINANCING,
                 'reference_id' => $locked->id,
+                'project_id' => $locked->project_id, // per-project P&L (Fase 6-3b)
                 'description' => "Pencairan pembiayaan proyek #{$locked->project_id}",
                 'recorded_by' => $by?->id,
                 'date' => now()->toDateString(),

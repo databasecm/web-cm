@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Enums\TransactionCategory;
 use App\Enums\TransactionType;
+use App\Models\Project;
 use App\Models\Role;
 use App\Services\FinanceReportService;
 use Filament\Pages\Page;
@@ -40,6 +41,9 @@ class FinanceDashboard extends Page
 
     public string $balance;
 
+    /** @var array{projects: array<int, array{income: string, expense: string, net: string}>, unallocated: array{income: string, expense: string, net: string}} */
+    public array $projectPnl;
+
     public static function canAccess(): bool
     {
         $actor = auth()->user();
@@ -55,6 +59,38 @@ class FinanceDashboard extends Page
 
         $this->period = $report->summary($this->periodStart, $this->periodEnd);
         $this->balance = $report->balance();
+        // All-time per-project P&L (unbounded) — a project spans many months.
+        $this->projectPnl = $report->profitLossByProject();
+    }
+
+    /**
+     * Per-project P&L rows (all-time), resolved to project titles and
+     * rupiah-formatted, sorted by net descending. Gaji and other unallocated
+     * rows are excluded here by design and reported separately.
+     *
+     * @return array<int, array{title: string, income: string, expense: string, net: string}>
+     */
+    public function getProjectRows(): array
+    {
+        $titles = Project::query()
+            ->whereIn('id', array_keys($this->projectPnl['projects']))
+            ->pluck('title', 'id');
+
+        $projects = $this->projectPnl['projects'];
+        // Sort by raw net (string decimals) descending before formatting.
+        uasort($projects, fn (array $a, array $b): int => (float) $b['net'] <=> (float) $a['net']);
+
+        $rows = [];
+        foreach ($projects as $id => $pnl) {
+            $rows[] = [
+                'title' => $titles[$id] ?? "Proyek #{$id}",
+                'income' => $this->rupiah($pnl['income']),
+                'expense' => $this->rupiah($pnl['expense']),
+                'net' => $this->rupiah($pnl['net']),
+            ];
+        }
+
+        return $rows;
     }
 
     /**

@@ -56,8 +56,50 @@
         </x-filament::section>
     </div>
 
-    <div class="text-xs text-gray-400 dark:text-gray-500">
-        Catatan: laba-rugi per proyek belum tersedia &mdash; transaksi belum tertaut ke proyek
-        (usulan: kolom <code>project_id</code> nullable di <code>transactions</code> untuk PO/gaji per proyek).
-    </div>
+    @php($projectRows = $this->getProjectRows())
+    @php($unalloc = $projectPnl['unallocated'])
+
+    <x-filament::section>
+        <x-slot name="heading">Laba-Rugi per Proyek (keseluruhan)</x-slot>
+        <x-slot name="description">Pemasukan (termin + pencairan) &minus; pengeluaran yang tertaut proyek.</x-slot>
+
+        <div style="overflow-x: auto;">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 dark:text-gray-400">
+                        <th class="py-1 pr-4">Proyek</th>
+                        <th class="py-1 pr-4 text-right">Pemasukan</th>
+                        <th class="py-1 pr-4 text-right">Pengeluaran</th>
+                        <th class="py-1 text-right">Laba/Rugi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($projectRows as $row)
+                        <tr class="border-t border-gray-100 dark:border-gray-800">
+                            <td class="py-1 pr-4">{{ $row['title'] }}</td>
+                            <td class="py-1 pr-4 text-right text-success-600 dark:text-success-400">{{ $row['income'] }}</td>
+                            <td class="py-1 pr-4 text-right text-danger-600 dark:text-danger-400">{{ $row['expense'] }}</td>
+                            <td class="py-1 text-right font-semibold">{{ $row['net'] }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="py-2 text-gray-500 dark:text-gray-400">Belum ada transaksi tertaut proyek.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-filament::section>
+
+    <x-filament::section>
+        <x-slot name="heading">Overhead Tak Teralokasi</x-slot>
+        <x-slot name="description">
+            Transaksi tanpa proyek &mdash; <strong>termasuk gaji</strong>, yang lintas banyak proyek
+            sehingga TIDAK diatribusikan ke proyek mana pun. Angka ini terpisah dari laba-rugi per proyek
+            di atas agar tidak menyesatkan.
+        </x-slot>
+        <div class="flex flex-wrap gap-x-8 gap-y-1">
+            <div>Pemasukan: <span class="font-medium text-success-600 dark:text-success-400">{{ $this->rupiah($unalloc['income']) }}</span></div>
+            <div>Pengeluaran: <span class="font-medium text-danger-600 dark:text-danger-400">{{ $this->rupiah($unalloc['expense']) }}</span></div>
+            <div>Net: <span class="font-semibold">{{ $this->rupiah($unalloc['net']) }}</span></div>
+        </div>
+    </x-filament::section>
 </x-filament-panels::page>

@@ -27,4 +27,32 @@ enum TransactionCategory: string
             self::Lainnya => 'Lainnya',
         };
     }
+
+    /**
+     * Categories a human may post BY HAND for a given direction (Fase 6-3).
+     *
+     * The rest are posted automatically and must never be hand-entered, or the
+     * cash book double-counts: pembayaran_konsumen (installment income),
+     * gaji (payroll expense) and material (PO expense, Fase 6-5). `investor`
+     * income is allowed by hand — a direct capital injection is a real event
+     * distinct from a financing disbursement (which tags reference_type
+     * `financing`); the manual row is tagged `manual`, so the two never merge.
+     *
+     * @return list<self>
+     */
+    public static function manualOptions(TransactionType $type): array
+    {
+        return match ($type) {
+            TransactionType::Income => [self::Investor, self::Lainnya],
+            TransactionType::Expense => [self::Operasional, self::Lainnya],
+        };
+    }
+
+    /**
+     * Whether this category may be posted by hand for the given direction.
+     */
+    public function isManualFor(TransactionType $type): bool
+    {
+        return in_array($this, self::manualOptions($type), true);
+    }
 }

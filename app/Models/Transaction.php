@@ -31,6 +31,9 @@ class Transaction extends Model
     /** Logical reference tag for a payroll payout. */
     public const REF_PAYROLL = 'payroll';
 
+    /** Logical reference tag for a hand-entered (manual) cash-book row. */
+    public const REF_MANUAL = 'manual';
+
     protected $fillable = [
         'type',
         'category',
@@ -85,5 +88,24 @@ class Transaction extends Model
     public function scopeForPayrolls(Builder $query): Builder
     {
         return $query->where('reference_type', self::REF_PAYROLL);
+    }
+
+    /**
+     * A hand-entered row (reference_type = manual) — the only kind Finance may
+     * edit or delete. Auto-sourced rows (installment/financing/payroll/PO) mirror
+     * real events and stay read-only in the cash book.
+     */
+    public function isManual(): bool
+    {
+        return $this->reference_type === self::REF_MANUAL;
+    }
+
+    /**
+     * @param  Builder<Transaction>  $query
+     * @return Builder<Transaction>
+     */
+    public function scopeManual(Builder $query): Builder
+    {
+        return $query->where('reference_type', self::REF_MANUAL);
     }
 }

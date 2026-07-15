@@ -34,6 +34,9 @@ class Transaction extends Model
     /** Logical reference tag for a hand-entered (manual) cash-book row. */
     public const REF_MANUAL = 'manual';
 
+    /** Logical reference tag for a received material purchase order. */
+    public const REF_PO = 'po';
+
     protected $fillable = [
         'type',
         'category',
@@ -95,6 +98,15 @@ class Transaction extends Model
     public function scopeForPayrolls(Builder $query): Builder
     {
         return $query->where('reference_type', self::REF_PAYROLL);
+    }
+
+    /**
+     * @param  Builder<Transaction>  $query
+     * @return Builder<Transaction>
+     */
+    public function scopeForPurchaseOrders(Builder $query): Builder
+    {
+        return $query->where('reference_type', self::REF_PO);
     }
 
     /**

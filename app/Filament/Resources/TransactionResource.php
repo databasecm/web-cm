@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\TransactionCategory;
 use App\Enums\TransactionType;
 use App\Filament\Resources\TransactionResource\Pages;
+use App\Models\Project;
 use App\Models\Transaction;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -86,6 +87,13 @@ class TransactionResource extends Resource
                         ->default(now())
                         ->native(false),
 
+                    Forms\Components\Select::make('project_id')
+                        ->label('Proyek (opsional)')
+                        ->options(fn (): array => Project::query()->orderBy('title')->pluck('title', 'id')->all())
+                        ->searchable()
+                        ->placeholder('— tanpa proyek —')
+                        ->helperText('Tautkan ke proyek agar masuk laba-rugi per proyek. Kosongkan bila overhead umum.'),
+
                     Forms\Components\Textarea::make('description')
                         ->label('Keterangan')
                         ->maxLength(1000)
@@ -110,6 +118,7 @@ class TransactionResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (TransactionCategory $state): string => $state->label()),
                 Tables\Columns\TextColumn::make('description')->label('Keterangan')->limit(40)->placeholder('—')->wrap(),
+                Tables\Columns\TextColumn::make('project.title')->label('Proyek')->placeholder('—')->toggleable(),
                 Tables\Columns\TextColumn::make('amount')
                     ->label('Nominal')
                     ->money('IDR')

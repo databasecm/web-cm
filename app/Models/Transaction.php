@@ -40,6 +40,7 @@ class Transaction extends Model
         'amount',
         'reference_type',
         'reference_id',
+        'project_id',
         'description',
         'recorded_by',
         'date',
@@ -61,6 +62,12 @@ class Transaction extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    /** The project this cash movement belongs to (null = unallocated, e.g. gaji). */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     /**

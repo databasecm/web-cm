@@ -29,6 +29,7 @@ class CreateTransaction extends CreateRecord
             (string) $data['date'],
             $data['description'] ?? null,
             auth()->user(),
+            $data['project_id'] !== null ? (int) $data['project_id'] : null,
         );
     }
 

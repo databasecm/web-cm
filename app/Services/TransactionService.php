@@ -33,6 +33,7 @@ class TransactionService
         string $date,
         ?string $description = null,
         ?User $by = null,
+        ?int $projectId = null,
     ): Transaction {
         if (! $category->isManualFor($type)) {
             throw TransactionException::categoryNotManual($category, $type);
@@ -46,6 +47,9 @@ class TransactionService
             'amount' => $normalized,
             'reference_type' => Transaction::REF_MANUAL,
             'reference_id' => null,
+            // Optional per-project link (Fase 6-3b) so a manual expense can feed
+            // project P&L; left null when the entry is general overhead.
+            'project_id' => $projectId,
             'description' => $description,
             'recorded_by' => $by?->id,
             'date' => $date,

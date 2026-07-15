@@ -7,6 +7,7 @@ use App\Filament\Pages\FinanceDashboard;
 use App\Filament\Resources\TransactionResource;
 use App\Filament\Resources\TransactionResource\Pages\CreateTransaction;
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\Transaction;
 use App\Models\User;
@@ -112,4 +113,28 @@ it('filters the cash book by type', function () {
         ->filterTable('type', TransactionType::Income->value)
         ->assertCanSeeTableRecords([$income])
         ->assertCanNotSeeTableRecords([$expense]);
+});
+
+// ---------------------------------------------------------------------------
+// The Finance dashboard renders per-project P&L and the unallocated overhead
+// ---------------------------------------------------------------------------
+
+it('renders the finance dashboard with per-project P&L and unallocated overhead', function () {
+    $finance = trxUser('finance');
+    $project = Project::factory()->create(['title' => 'Proyek Uji PNL']);
+    // One project-linked income and one unallocated gaji expense.
+    Transaction::factory()->create([
+        'type' => TransactionType::Income, 'category' => TransactionCategory::PembayaranKonsumen,
+        'amount' => '500000.00', 'project_id' => $project->id,
+    ]);
+    Transaction::factory()->create([
+        'type' => TransactionType::Expense, 'category' => TransactionCategory::Gaji,
+        'amount' => '100000.00', 'project_id' => null,
+    ]);
+
+    $this->actingAs($finance);
+    Livewire::test(FinanceDashboard::class)
+        ->assertOk()
+        ->assertSee('Proyek Uji PNL')            // per-project row
+        ->assertSee('Overhead Tak Teralokasi');  // gaji kept separate
 });

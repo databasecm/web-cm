@@ -14,6 +14,8 @@ use App\Services\CheckoutService;
 use Database\Seeders\RoleSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -21,7 +23,18 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
     Filament::setCurrentPanel(Filament::getPanel('sistem'));
+    Storage::fake('media');
 });
+
+/**
+ * A fake PDF upload with real bytes — the Livewire testing helper needs a fake
+ * File (has a `name`), and MediaService guesses the MIME from content, so the
+ * content must actually be a PDF.
+ */
+function bastPdfUpload(): UploadedFile
+{
+    return UploadedFile::fake()->createWithContent('bast.pdf', "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+}
 
 function bastRoled(string $name, ?Bidang $bidang = null): User
 {
@@ -50,12 +63,14 @@ it('offers Terbitkan BAST to a managing Manager and issues via the service', fun
         'pageClass' => ViewProject::class,
     ])->assertTableActionVisible('terbitkanBast');
 
-    $rm->callTableAction('terbitkanBast', data: ['file' => 'bast/demo.pdf']);
+    $rm->callTableAction('terbitkanBast', data: ['upload' => bastPdfUpload()]);
 
     $bast = $project->bast()->first();
     expect($bast)->not->toBeNull()
-        ->and($bast->file)->toBe('bast/demo.pdf')
-        ->and($bast->status->value)->toBe('draft');
+        ->and($bast->status->value)->toBe('draft')
+        // The attachment was stored through MediaService, not a path string.
+        ->and($bast->file)->toStartWith('bast/')
+        ->and(Storage::disk('media')->exists($bast->file))->toBeTrue();
 });
 
 it('records the company signature (as the Manager) through the action', function () {

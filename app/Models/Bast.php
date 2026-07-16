@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Contracts\HasMedia;
 use App\Enums\BastStatus;
 use App\Exceptions\BastException;
+use App\Media\MediaDescriptor;
 use App\Models\Concerns\Auditable;
 use Database\Factories\BastFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,12 +23,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * (issuing the draft, recording each signature, unlocking the pelunasan
  * installment) is wired in Fase 3-2 via BastService.
  */
-class Bast extends Model
+class Bast extends Model implements HasMedia
 {
     /** @use HasFactory<BastFactory> */
     use Auditable, HasFactory;
 
     protected $table = 'bast';
+
+    /**
+     * `bast.file` is the uploaded handover DOCUMENT (a PDF attachment) — distinct
+     * from the system-GENERATED BAST PDF (BastPdf, guarded by downloadPdf). The
+     * attachment is guarded by the BAST `view` policy (project-scoped) — ADR-0015
+     * (Fase media-2).
+     */
+    public function mediaDescriptor(): MediaDescriptor
+    {
+        return new MediaDescriptor(
+            prefix: 'bast',
+            profiles: ['document'],
+            viewAbility: 'view',
+        );
+    }
 
     /**
      * In-memory defaults matching the DB defaults, so a freshly created BAST

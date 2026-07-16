@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Bast;
 use App\Models\Design;
 
 /*
@@ -54,5 +55,6 @@ return [
      */
     'models' => [
         'design' => Design::class,
+        'bast' => Bast::class,
     ],
 ];

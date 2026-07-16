@@ -8,11 +8,13 @@ use App\Models\Bast;
 use App\Models\Project;
 use App\Services\BastPdf;
 use App\Services\BastService;
+use App\Services\MediaService;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Http\UploadedFile;
 
 /**
  * Manager surface for a project's BAST (Fase 3-3). One BAST per project (1—1).
@@ -44,7 +46,9 @@ class BastRelationManager extends RelationManager
                 Tables\Columns\IconColumn::make('signed_company')->label('TTD Perusahaan')->boolean(),
                 Tables\Columns\TextColumn::make('companySigner.name')->label('Oleh (Perusahaan)')->placeholder('—'),
                 Tables\Columns\TextColumn::make('signed_at')->label('Ditandatangani')->dateTime('d/m/Y H:i')->placeholder('—'),
-                Tables\Columns\TextColumn::make('file')->label('Dokumen')->placeholder('—')->limit(40),
+                Tables\Columns\IconColumn::make('file')->label('Lampiran')
+                    ->boolean()
+                    ->state(fn (Bast $record): bool => $record->file !== null),
             ])
             ->headerActions([
                 // Issue the draft BAST (only when none exists yet; the service
@@ -54,37 +58,38 @@ class BastRelationManager extends RelationManager
                     ->icon('heroicon-o-document-plus')
                     ->visible(fn (): bool => $this->getOwnerRecord()->bast === null
                         && auth()->user()->can('issueBast', $this->getOwnerRecord()))
-                    ->form([
-                        Forms\Components\TextInput::make('file')
-                            ->label('Dokumen BAST (path/tautan)')
-                            ->maxLength(255),
-                    ])
+                    ->form([static::documentUpload()])
                     ->action(function (array $data): void {
                         /** @var Project $project */
                         $project = $this->getOwnerRecord();
-                        app(BastService::class)->issue($project, $data['file'] ?? null);
+                        app(BastService::class)->issue($project, static::storeUpload($data));
 
                         Notification::make()->title('BAST diterbitkan.')->success()->send();
                     }),
             ])
             ->actions([
-                // Attach/replace the document reference.
+                // Attach/replace the uploaded handover document (PDF).
                 Tables\Actions\Action::make('isiDokumen')
                     ->label('Isi Dokumen')
                     ->icon('heroicon-o-paper-clip')
                     ->visible(fn (Bast $record): bool => auth()->user()->can('signCompany', $record))
-                    ->fillForm(fn (Bast $record): array => ['file' => $record->file])
-                    ->form([
-                        Forms\Components\TextInput::make('file')
-                            ->label('Dokumen BAST (path/tautan)')
-                            ->maxLength(255),
-                    ])
+                    ->form([static::documentUpload()])
                     ->action(function (Bast $record, array $data): void {
-                        app(BastService::class)->setFile($record, $data['file'] ?? null);
+                        app(BastService::class)->setFile($record, static::storeUpload($data));
                         Notification::make()->title('Dokumen diperbarui.')->success()->send();
                     }),
 
-                // Download the signed BAST document PDF (Fase 3-7).
+                // Download the uploaded ATTACHMENT (guarded by the BAST view policy)
+                // — distinct from the generated BAST PDF below.
+                Tables\Actions\Action::make('unduhLampiran')
+                    ->label('Unduh Lampiran')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->visible(fn (Bast $record): bool => $record->file !== null
+                        && auth()->user()->can('view', $record))
+                    ->url(fn (Bast $record): string => app(MediaService::class)->temporaryUrl($record))
+                    ->openUrlInNewTab(),
+
+                // Download the signed BAST document PDF (Fase 3-7) — generated, not uploaded.
                 Tables\Actions\Action::make('unduhBast')
                     ->label('Unduh BAST')
                     ->icon('heroicon-o-document-arrow-down')
@@ -117,5 +122,32 @@ class BastRelationManager extends RelationManager
     public function isReadOnly(): bool
     {
         return false;
+    }
+
+    /** A PDF-only binary upload for the BAST attachment, handed to MediaService. */
+    protected static function documentUpload(): Forms\Components\FileUpload
+    {
+        return Forms\Components\FileUpload::make('upload')
+            ->label('Dokumen BAST (PDF)')
+            ->disk(config('media.disk'))
+            ->storeFiles(false) // hand the temp file to MediaService (single validator)
+            ->acceptedFileTypes((new Bast)->mediaDescriptor()->allowedMimes())
+            ->maxSize((new Bast)->mediaDescriptor()->maxKb());
+    }
+
+    /**
+     * Validate + store the uploaded document via MediaService, returning its key
+     * (null when nothing was uploaded).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected static function storeUpload(array $data): ?string
+    {
+        $upload = $data['upload'] ?? null;
+        $file = is_array($upload) ? reset($upload) : $upload;
+
+        return $file instanceof UploadedFile
+            ? app(MediaService::class)->store(new Bast, $file)
+            : null;
     }
 }

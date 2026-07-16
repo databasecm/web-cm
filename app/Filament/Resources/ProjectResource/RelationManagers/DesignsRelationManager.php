@@ -6,11 +6,13 @@ use App\Enums\DesignStatus;
 use App\Models\Design;
 use App\Models\Project;
 use App\Services\DesignService;
+use App\Services\MediaService;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Http\UploadedFile;
 
 /**
  * Manager surface for a project's design versions (Fase 2B-2): add a new version
@@ -42,7 +44,9 @@ class DesignsRelationManager extends RelationManager
                         DesignStatus::Submitted => 'warning',
                         DesignStatus::Approved => 'success',
                     }),
-                Tables\Columns\TextColumn::make('file')->label('Berkas')->default('—')->limit(40),
+                Tables\Columns\IconColumn::make('file')->label('Berkas')
+                    ->boolean()
+                    ->state(fn (Design $record): bool => $record->file !== null),
                 Tables\Columns\TextColumn::make('approver.name')->label('Disetujui oleh')->placeholder('—'),
                 Tables\Columns\TextColumn::make('approved_at')->label('Disetujui')->dateTime('d M Y H:i')->placeholder('—'),
             ])
@@ -52,17 +56,36 @@ class DesignsRelationManager extends RelationManager
                     ->icon('heroicon-o-plus')
                     ->visible(fn (): bool => auth()->user()->can('create', Design::class))
                     ->form([
-                        Forms\Components\TextInput::make('file')->label('Berkas (path/link)')->maxLength(2048),
+                        Forms\Components\FileUpload::make('upload')
+                            ->label('Berkas (gambar / PDF)')
+                            ->disk(config('media.disk'))
+                            ->storeFiles(false) // hand the temp file to MediaService (single validator)
+                            ->acceptedFileTypes((new Design)->mediaDescriptor()->allowedMimes())
+                            ->maxSize((new Design)->mediaDescriptor()->maxKb()),
                         Forms\Components\Textarea::make('notes')->label('Catatan')->maxLength(1000),
                     ])
                     ->action(function (array $data): void {
                         /** @var Project $project */
                         $project = $this->getOwnerRecord();
-                        app(DesignService::class)->addVersion($project, $data);
+
+                        $upload = $data['upload'] ?? null;
+                        $file = is_array($upload) ? reset($upload) : $upload;
+                        $key = $file instanceof UploadedFile
+                            ? app(MediaService::class)->store(new Design, $file)
+                            : null;
+
+                        app(DesignService::class)->addVersion($project, ['file' => $key, 'notes' => $data['notes'] ?? null]);
                         Notification::make()->title('Versi desain ditambahkan.')->success()->send();
                     }),
             ])
             ->actions([
+                Tables\Actions\Action::make('unduh')
+                    ->label('Unduh')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->visible(fn (Design $record): bool => $record->file !== null
+                        && auth()->user()->can('view', $record))
+                    ->url(fn (Design $record): string => app(MediaService::class)->temporaryUrl($record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('ajukan')
                     ->label('Ajukan')
                     ->icon('heroicon-o-paper-airplane')

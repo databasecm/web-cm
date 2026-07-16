@@ -12,6 +12,8 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -19,6 +21,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
     Filament::setCurrentPanel(Filament::getPanel('sistem'));
+    Storage::fake('media');
 });
 
 function pUser(string $roleName, ?Bidang $bidang = null): User
@@ -50,12 +53,18 @@ it('lets a Manager add a design version and submit it', function () {
         'ownerRecord' => $project,
         'pageClass' => ViewProject::class,
     ])
-        ->callTableAction('tambahVersi', data: ['file' => 'desain-v1.pdf', 'notes' => 'Revisi awal'])
+        ->callTableAction('tambahVersi', data: [
+            'upload' => UploadedFile::fake()->image('desain-v1.png'),
+            'notes' => 'Revisi awal',
+        ])
         ->assertHasNoTableActionErrors();
 
     $design = $project->designs()->sole();
     expect($design->version)->toBe(1)
-        ->and($design->status)->toBe(DesignStatus::Draft);
+        ->and($design->status)->toBe(DesignStatus::Draft)
+        // The binary was stored through MediaService, not a path string.
+        ->and($design->file)->toStartWith('designs/')
+        ->and(Storage::disk('media')->exists($design->file))->toBeTrue();
 
     // Submit it to the consumer.
     Livewire::test(DesignsRelationManager::class, [

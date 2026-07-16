@@ -47,6 +47,16 @@ return [
             'report' => false,
         ],
 
+        // Private media disk (ADR-0015). Local in dev/test; served only through
+        // the signed, policy-checked media route — never a public URL. At go-live
+        // set MEDIA_DISK=s3 (config only).
+        'media' => [
+            'driver' => 'local',
+            'root' => storage_path('app/media'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

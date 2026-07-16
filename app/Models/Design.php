@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Contracts\HasMedia;
 use App\Enums\DesignStatus;
+use App\Media\MediaDescriptor;
 use App\Models\Concerns\Auditable;
 use Database\Factories\DesignFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,10 +17,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * records who/when — the main project status only advances when the RAB is
  * approved (2B-5).
  */
-class Design extends Model
+class Design extends Model implements HasMedia
 {
     /** @use HasFactory<DesignFactory> */
     use Auditable, HasFactory;
+
+    /**
+     * A design file may be an image or a PDF; viewing it is guarded by the
+     * design `view` policy (project-scoped) — ADR-0015 (Fase media-1).
+     */
+    public function mediaDescriptor(): MediaDescriptor
+    {
+        return new MediaDescriptor(
+            prefix: 'designs',
+            profiles: ['image', 'document'],
+            viewAbility: 'view',
+        );
+    }
 
     protected $fillable = [
         'project_id',

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Contracts\HasMedia;
 use App\Enums\FinancingDocumentStatus;
+use App\Media\MediaDescriptor;
 use App\Models\Concerns\Auditable;
 use Database\Factories\FinancingDocumentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,10 +17,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * is hidden so the document pointer is redacted in the audit trail and never
  * leaks through generic serialization.
  */
-class FinancingDocument extends Model
+class FinancingDocument extends Model implements HasMedia
 {
     /** @use HasFactory<FinancingDocumentFactory> */
     use Auditable, HasFactory;
+
+    /**
+     * The most sensitive media in the system (KTP/payslip): an image or a PDF,
+     * served ONLY to whoever may view the document — the owning consumer, the
+     * owning bank, and Owner/Direktur (FinancingDocumentPolicy::view). Never a
+     * Manager, never Finance, never another bank/consumer. ADR-0015, Fase media-4.
+     */
+    public function mediaDescriptor(): MediaDescriptor
+    {
+        return new MediaDescriptor(
+            prefix: 'financing-documents',
+            profiles: ['image', 'document'],
+            viewAbility: 'view',
+        );
+    }
 
     protected $fillable = [
         'financing_id',

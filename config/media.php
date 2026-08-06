@@ -2,6 +2,7 @@
 
 use App\Models\Bast;
 use App\Models\Design;
+use App\Models\FinancingDocument;
 use App\Models\ReportMedia;
 
 /*
@@ -59,5 +60,6 @@ return [
         'design' => Design::class,
         'bast' => Bast::class,
         'report_media' => ReportMedia::class,
+        'financing_document' => FinancingDocument::class,
     ],
 ];

@@ -8,6 +8,8 @@ use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -112,22 +114,30 @@ it('returns the project financing or 404 before one exists', function () {
 // ---------------------------------------------------------------------------
 
 it('uploads and lists documents on an own financing', function () {
+    Storage::fake('media');
     $me = famKons();
     $project = Project::factory()->ownedBy($me)->create();
     $financing = Financing::factory()->forProject($project)->forBank(famBank())->create();
 
     Sanctum::actingAs($me);
 
-    $this->postJson("/api/v1/financings/{$financing->id}/documents", [
+    // Real binary upload (multipart), stored on the private media disk (ADR-0015).
+    $this->post("/api/v1/financings/{$financing->id}/documents", [
         'name' => 'KTP',
-        'file' => 'financing/ktp.pdf',
+        'file' => UploadedFile::fake()->image('ktp.jpg'),
     ])->assertCreated()
         ->assertJsonPath('data.status', 'pending')
         ->assertJsonPath('data.name', 'KTP');
 
+    // The file pointer stays hidden ($hidden) — never serialized to the consumer.
+    $document = FinancingDocument::sole();
+    expect($document->file)->toStartWith('financing-documents/')
+        ->and(Storage::disk('media')->exists($document->file))->toBeTrue();
+
     $this->getJson("/api/v1/financings/{$financing->id}/documents")
         ->assertOk()
-        ->assertJsonPath('meta.count', 1);
+        ->assertJsonPath('meta.count', 1)
+        ->assertJsonMissingPath('data.0.file'); // pointer never leaks in JSON
 });
 
 it('forbids uploading to another consumer financing and blocks a final one', function () {

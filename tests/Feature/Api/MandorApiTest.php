@@ -128,10 +128,11 @@ it('processes valid items and rejects invalid ones in a partial batch', function
 });
 
 // ---------------------------------------------------------------------------
-// Daily report sync — idempotent, media attached once, progress untouched
+// Daily report sync — text only, idempotent, progress untouched
+// (media is binary and uploads through a separate endpoint — ADR-0015)
 // ---------------------------------------------------------------------------
 
-it('syncs a daily report batch idempotently with media', function () {
+it('syncs a daily report batch idempotently, text only', function () {
     $mandor = mandorUser(Bidang::Cufid);
     $project = Project::factory()->inBidang(Bidang::Cufid)->create(['progress_percent' => 0]);
     $clientId = (string) Str::uuid();
@@ -142,7 +143,6 @@ it('syncs a daily report batch idempotently with media', function () {
         'date' => '2026-07-06',
         'description' => 'Cor lantai 1',
         'progress_note' => 'sekitar 60% menurut mandor',
-        'media' => [['type' => 'photo', 'file' => 'reports/cor.jpg', 'caption' => 'progres']],
     ]]];
 
     Sanctum::actingAs($mandor);
@@ -152,8 +152,7 @@ it('syncs a daily report batch idempotently with media', function () {
     $this->postJson('/api/v1/mandor/daily-reports/sync', $payload)->assertOk()
         ->assertJsonPath('data.0.status', 'duplicate'); // retry
 
-    expect(DailyReport::count())->toBe(1)
-        ->and(DailyReport::first()->media()->count())->toBe(1) // media not doubled on retry
+    expect(DailyReport::count())->toBe(1) // not doubled on retry
         ->and((float) $project->refresh()->progress_percent)->toBe(0.0); // progress untouched
 });
 

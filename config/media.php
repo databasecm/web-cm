@@ -2,6 +2,7 @@
 
 use App\Models\Bast;
 use App\Models\Design;
+use App\Models\ReportMedia;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,7 +44,8 @@ return [
             'max_kb' => (int) env('MEDIA_MAX_DOCUMENT_KB', 10240), // 10 MB
         ],
         'video' => [
-            'mimes' => ['video/mp4', 'video/quicktime'],
+            // application/mp4 is a legitimate MP4 type some encoders/guessers emit.
+            'mimes' => ['video/mp4', 'application/mp4', 'video/quicktime'],
             'max_kb' => (int) env('MEDIA_MAX_VIDEO_KB', 51200),   // 50 MB
         ],
     ],
@@ -56,5 +58,6 @@ return [
     'models' => [
         'design' => Design::class,
         'bast' => Bast::class,
+        'report_media' => ReportMedia::class,
     ],
 ];

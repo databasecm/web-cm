@@ -102,7 +102,9 @@ it('P5(c): retrying a batch with the same client_id creates no duplicates', func
     $attId = (string) Str::uuid();
     $repId = (string) Str::uuid();
     $attBatch = ['items' => [['client_id' => $attId, 'employee_id' => $employee->id, 'project_id' => $project->id, 'date' => '2026-07-06', 'status' => 'hadir']]];
-    $repBatch = ['items' => [['client_id' => $repId, 'project_id' => $project->id, 'date' => '2026-07-06', 'description' => 'Cor', 'media' => [['type' => 'photo', 'file' => 'r/1.jpg']]]]];
+    // Report sync is TEXT ONLY — media is binary and uploads through a separate
+    // endpoint (ADR-0015), so it is not part of this batch's idempotency contract.
+    $repBatch = ['items' => [['client_id' => $repId, 'project_id' => $project->id, 'date' => '2026-07-06', 'description' => 'Cor']]];
 
     Sanctum::actingAs($mandor);
 
@@ -112,8 +114,7 @@ it('P5(c): retrying a batch with the same client_id creates no duplicates', func
     }
 
     expect(Attendance::count())->toBe(1)
-        ->and(DailyReport::count())->toBe(1)
-        ->and(DailyReport::first()->media()->count())->toBe(1); // media not doubled
+        ->and(DailyReport::count())->toBe(1); // neither attendance nor report doubled
 });
 
 // ===========================================================================

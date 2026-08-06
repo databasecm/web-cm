@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Api\Consumer;
 
+use App\Exceptions\MediaException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\FinancingDocumentResource;
 use App\Http\Resources\Api\FinancingResource;
 use App\Models\Financing;
+use App\Models\FinancingDocument;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\FinancingDocumentService;
 use App\Services\FinancingService;
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
@@ -77,18 +80,36 @@ class FinancingController extends Controller
             ->additional(['meta' => ['count' => $documents->count()]]);
     }
 
-    /** Upload/record a document on an own financing. */
+    /**
+     * Upload a requirement document (KTP/payslip) on an own financing — a real
+     * binary (image/PDF) stored on the private media disk (ADR-0015, Fase media-4).
+     *
+     * The final-financing guard runs BEFORE the file is stored (no orphan on a
+     * locked application); the type/size are validated server-side by MediaService.
+     */
     public function uploadDocument(Request $request, Financing $financing): FinancingDocumentResource
     {
         Gate::authorize('uploadFinancingDocument', $financing);
 
+        if ($financing->status->isFinal()) {
+            throw ValidationException::withMessages([
+                'financing' => 'Dokumen terkunci — pengajuan pembiayaan sudah final.',
+            ]);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'file' => ['nullable', 'string', 'max:255'],
+            'file' => ['required', 'file'],
         ]);
 
+        try {
+            $key = app(MediaService::class)->store(new FinancingDocument, $request->file('file'));
+        } catch (MediaException $e) {
+            throw ValidationException::withMessages(['file' => $e->getMessage()]);
+        }
+
         $document = app(FinancingDocumentService::class)
-            ->upload($financing, $data['name'], $data['file'] ?? null, $request->user());
+            ->upload($financing, $data['name'], $key, $request->user());
 
         return (new FinancingDocumentResource($document))
             ->additional(['meta' => ['message' => 'Dokumen diunggah.']]);

@@ -8,6 +8,7 @@ use App\Models\DailyReport;
 use App\Models\Project;
 use App\Models\ReportMedia;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -72,13 +73,23 @@ class DailyReportService
     }
 
     /**
-     * Attach a media item (path/link) to a report.
+     * Attach a photo/video to a report (Fase media-3, ADR-0015). The binary is
+     * validated + stored by MediaService (server-side type & size); `type` is
+     * derived from the resulting MIME — never the client's claim.
      */
-    public function addMedia(DailyReport $report, ReportMediaType $type, ?string $file = null, ?string $caption = null): ReportMedia
+    public function attachMedia(DailyReport $report, UploadedFile $file, ?string $caption = null): ReportMedia
     {
+        $media = new ReportMedia;
+        $key = app(MediaService::class)->store($media, $file);
+
+        $mime = $file->getMimeType() ?? '';
+        $type = in_array($mime, (array) config('media.profiles.video.mimes', []), true)
+            ? ReportMediaType::Video
+            : ReportMediaType::Photo;
+
         return $report->media()->create([
             'type' => $type,
-            'file' => $file,
+            'file' => $key,
             'caption' => $caption,
         ]);
     }

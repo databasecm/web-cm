@@ -15,6 +15,8 @@ use App\Services\CheckoutService;
 use App\Services\DailyReportService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -45,10 +47,14 @@ it('allows only one report per project per day', function () {
     $project = Project::factory()->inBidang(Bidang::Cufid)->create();
     $mandor = drRoled('mandor', Bidang::Cufid);
 
+    Storage::fake('media');
     $report = $this->reports->create($project, $mandor, '2026-07-06', 'Cor lantai 1');
-    $this->reports->addMedia($report, ReportMediaType::Photo, 'reports/cor.jpg', 'progres cor');
+    // Binary photo attach (ADR-0015): type is derived from the upload's MIME.
+    $media = $this->reports->attachMedia($report, UploadedFile::fake()->image('cor.jpg'), 'progres cor');
 
     expect($report->media()->count())->toBe(1)
+        ->and($media->type)->toBe(ReportMediaType::Photo)
+        ->and($media->file)->toStartWith('report-media/')
         ->and((int) $report->mandor_id)->toBe($mandor->id);
 
     expect(fn () => $this->reports->create($project, $mandor, '2026-07-06', 'Duplikat'))

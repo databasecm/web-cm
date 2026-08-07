@@ -8,6 +8,8 @@ use App\Exceptions\FinancingException;
 use App\Models\Financing;
 use App\Models\FinancingDocument;
 use App\Models\User;
+use App\Notifications\FinancingDocumentReviewedNotification;
+use App\Notifications\NotificationDispatcher;
 
 /**
  * Financing document flow (Fase 4-3). Pure service + guards; authorization is the
@@ -22,7 +24,10 @@ use App\Models\User;
  */
 class FinancingDocumentService
 {
-    public function __construct(private FinancingService $financings) {}
+    public function __construct(
+        private FinancingService $financings,
+        private NotificationDispatcher $notifications,
+    ) {}
 
     /**
      * The consumer uploads/records a requirement document → pending review.
@@ -76,6 +81,14 @@ class FinancingDocumentService
             'reviewed_by' => $by?->id,
             'reviewed_at' => now(),
         ]);
+
+        // E8 — ONLY the owning consumer; the body carries the status but never
+        // the reviewer's note/reason or the document content (§6.5, 4-3).
+        $this->notifications->dispatch(
+            'financing_document.reviewed',
+            $document,
+            fn (): FinancingDocumentReviewedNotification => new FinancingDocumentReviewedNotification($document),
+        );
 
         return $document;
     }

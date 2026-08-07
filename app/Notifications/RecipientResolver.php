@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use App\Enums\Bidang;
+use App\Models\Financing;
+use App\Models\FinancingDocument;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -43,6 +45,36 @@ class RecipientResolver
      */
     public function recipientsFor(string $event, Model $entity): Collection
     {
+        // Financing events resolve off the financing's OWN parties (§6.5): the
+        // owning consumer and the owning bank (bank_mitra_id) — never a project's
+        // wider audience, and NEVER another bank. Handled before the project
+        // branch because a Financing also has a project.
+        $financing = $this->financingOf($entity);
+
+        if ($financing !== null) {
+            /** @var Collection<int, User> $recipients */
+            $recipients = match ($event) {
+                // E6 — lifecycle transition: the applicant and its bank.
+                'financing.status_changed' => $this->financingOwner($financing)
+                    ->merge($this->financingBank($financing)),
+
+                // E7 — disbursed (cash out): same, plus the cash overseers.
+                'financing.disbursed' => $this->financingOwner($financing)
+                    ->merge($this->financingBank($financing))
+                    ->merge($this->finance())
+                    ->merge($this->overseers()),
+
+                // E8 — document reviewed: ONLY the owning consumer. The bank did
+                // the review; Manager/Finance never see financing documents
+                // (FinancingDocumentPolicy, 4-3).
+                'financing_document.reviewed' => $this->financingOwner($financing),
+
+                default => $this->none(),
+            };
+
+            return $recipients->unique('id')->values();
+        }
+
         $project = $this->projectOf($entity);
 
         if ($project === null) {
@@ -156,6 +188,41 @@ class RecipientResolver
             ->where('bidang', $bidang)
             ->whereHas('role', fn ($query) => $query->where('name', Role::NAME_MANAGER))
             ->get();
+    }
+
+    /**
+     * The owning consumer of a financing (Financing::konsumen), as a 0-or-1 set.
+     *
+     * @return Collection<int, User>
+     */
+    private function financingOwner(Financing $financing): Collection
+    {
+        return User::query()->whereKey($financing->konsumen_id)->get();
+    }
+
+    /**
+     * The financing's OWN bank (bank_mitra_id), as a 0-or-1 set. Any other bank
+     * resolves to nothing here — that is the §6.5 boundary made mechanical.
+     *
+     * @return Collection<int, User>
+     */
+    private function financingBank(Financing $financing): Collection
+    {
+        return User::query()->whereKey($financing->bank_mitra_id)->get();
+    }
+
+    /** The financing a subject hangs off (itself, or a document's parent), or null. */
+    private function financingOf(Model $entity): ?Financing
+    {
+        if ($entity instanceof Financing) {
+            return $entity;
+        }
+
+        if ($entity instanceof FinancingDocument) {
+            return $entity->financing;
+        }
+
+        return null;
     }
 
     /** The project a business subject hangs off, or null. */

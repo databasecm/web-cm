@@ -10,6 +10,9 @@ use App\Models\Financing;
 use App\Models\Project;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\FinancingDisbursedNotification;
+use App\Notifications\FinancingStatusChangedNotification;
+use App\Notifications\NotificationDispatcher;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +28,8 @@ use Illuminate\Support\Facades\DB;
  */
 class FinancingService
 {
+    public function __construct(private NotificationDispatcher $notifications) {}
+
     /**
      * A consumer applies to a bank partner to finance a project. Creates a
      * submitted application; the model enforces one active financing per project.
@@ -53,7 +58,16 @@ class FinancingService
             throw FinancingException::notApproved();
         }
 
-        return $financing->transitionTo($newStatus, $by?->id, $note);
+        $financing = $financing->transitionTo($newStatus, $by?->id, $note);
+
+        // E6 — neutral knock to the applicant + the owning bank only (§6.5).
+        $this->notifications->dispatch(
+            'financing.status_changed',
+            $financing,
+            fn (): FinancingStatusChangedNotification => new FinancingStatusChangedNotification($financing),
+        );
+
+        return $financing;
     }
 
     /**
@@ -65,7 +79,7 @@ class FinancingService
      */
     public function disburse(Financing $financing, ?User $by = null): Transaction
     {
-        return DB::transaction(function () use ($financing, $by): Transaction {
+        $transaction = DB::transaction(function () use ($financing, $by): Transaction {
             // Lock the row across every actor (ignore the bank scope) so concurrent
             // disbursements cannot both pass the guard.
             $locked = Financing::withoutGlobalScopes()
@@ -97,5 +111,16 @@ class FinancingService
                 'date' => now()->toDateString(),
             ]);
         });
+
+        // E7 — after commit, outside the money transaction: applicant + owning
+        // bank + cash overseers. No amount in the body; a notification failure
+        // never unwinds the disbursement/income (regression guard, 4-2).
+        $this->notifications->dispatch(
+            'financing.disbursed',
+            $financing,
+            fn (): FinancingDisbursedNotification => new FinancingDisbursedNotification($financing),
+        );
+
+        return $transaction;
     }
 }

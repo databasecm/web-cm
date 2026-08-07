@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Mandor\DailyReportSyncController;
 use App\Http\Controllers\Api\Mandor\FieldContextController;
 use App\Http\Controllers\Api\Mandor\MaterialController;
 use App\Http\Controllers\Api\Mandor\ReportMediaController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -81,5 +82,15 @@ Route::prefix('v1')->group(function () {
 
         // Field material catalog input (Fase 6-5b) — catalog only, no cash.
         Route::post('materials', [MaterialController::class, 'store']);
+    });
+
+    // In-app notification inbox (Fase 7-2) — any token account (consumer or
+    // Mandor) reads/marks ITS OWN notifications; ownership by NotificationPolicy.
+    // Internal staff use the Filament bell instead.
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     });
 });

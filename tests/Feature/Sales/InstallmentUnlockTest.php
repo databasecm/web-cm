@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
-    $this->progress = new ProgressService;
+    $this->progress = app(ProgressService::class);
 });
 
 /** A checked-out termin3 project (DP unlocked, progress50 + bast locked). */

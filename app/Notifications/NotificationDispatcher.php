@@ -16,10 +16,12 @@ use Throwable;
  *   - a delivery problem can never roll back or fail the business action —
  *     any error here is reported and swallowed.
  *
- * Idempotency: an event is identified by (event, subject id). A recipient who
- * already holds a notification for that pair is skipped, so a queue retry or a
- * double call yields exactly one notification per recipient. Distinct subjects
- * (e.g. two different installments) are distinct events and each notifies.
+ * Idempotency: an event is identified by its stored payload — (event, entity_id,
+ * body). A recipient who already holds that exact notification is skipped, so a
+ * queue retry or a double call yields one notification per recipient. Distinct
+ * subjects (two installments) differ by entity_id; repeatable subjects (a
+ * project whose progress moves 30% → 50%) differ by body, so each real step
+ * still notifies while a true retry does not.
  */
 class NotificationDispatcher
 {
@@ -32,11 +34,13 @@ class NotificationDispatcher
     {
         try {
             foreach ($this->resolver->recipientsFor($event, $subject) as $recipient) {
-                if ($this->alreadyNotified($recipient, $event, $subject)) {
+                $notification = $make($recipient);
+
+                if ($this->alreadyNotified($recipient, $notification->payload())) {
                     continue;
                 }
 
-                $recipient->notify($make($recipient));
+                $recipient->notify($notification);
             }
         } catch (Throwable $e) {
             // The business action already succeeded — a notification failure
@@ -46,15 +50,18 @@ class NotificationDispatcher
     }
 
     /**
-     * Whether this recipient already has the notification for (event, subject).
-     * The subject's key is what the notification stores as entity_id, so the two
-     * always align — no extra bookkeeping column is needed.
+     * Whether this recipient already holds this exact notification, keyed on the
+     * stored payload (event, entity_id, body) — no extra bookkeeping column is
+     * needed since all three live in the neutral payload.
+     *
+     * @param  array<string, mixed>  $payload
      */
-    private function alreadyNotified(User $recipient, string $event, Model $subject): bool
+    private function alreadyNotified(User $recipient, array $payload): bool
     {
         return $recipient->notifications()
-            ->where('data->event', $event)
-            ->where('data->entity_id', $subject->getKey())
+            ->where('data->event', $payload['event'])
+            ->where('data->entity_id', $payload['entity_id'])
+            ->where('data->body', $payload['body'])
             ->exists();
     }
 }

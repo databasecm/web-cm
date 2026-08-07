@@ -68,6 +68,18 @@ class RecipientResolver
                 ->merge($this->managersOfBidang($project->bidang))
                 ->merge($this->finance()),
 
+            // E4 progress, E5 daily report, E12 RAB finalised — the owning
+            // consumer and the bidang's Manager (ProjectPolicy view/manage).
+            // Finance is deliberately NOT on RAB finalise: their cash concern is
+            // the payment, not the contract (RabPolicy has no Finance role).
+            'progress.updated', 'daily_report.created', 'rab.finalized' => $this->owner($project)
+                ->merge($this->managersOfBidang($project->bidang)),
+
+            // E11 — PO received (a cash-out): the bidang's Manager (who raised it)
+            // and Finance (the cash book). NOT the consumer — this is internal.
+            'po.received' => $this->managersOfBidang($project->bidang)
+                ->merge($this->finance()),
+
             default => $this->none(),
         };
 

@@ -15,7 +15,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
-    $this->service = new RabService;
+    $this->service = app(RabService::class);
 });
 
 it('submits a draft RAB', function () {

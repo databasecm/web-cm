@@ -15,6 +15,9 @@ use App\Models\Payroll;
 use App\Models\Payslip;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\NotificationDispatcher;
+use App\Notifications\PayrollGeneratedNotification;
+use App\Notifications\PayrollPaidNotification;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Database\Eloquent\Collection;
@@ -36,7 +39,10 @@ use Illuminate\Support\Facades\DB;
  */
 class PayrollService
 {
-    public function __construct(private AttendanceService $attendance) {}
+    public function __construct(
+        private AttendanceService $attendance,
+        private NotificationDispatcher $notifications,
+    ) {}
 
     /**
      * Pay a payroll run (Fase 6-2): post ONE cash-book salary expense for the
@@ -50,7 +56,7 @@ class PayrollService
      */
     public function pay(Payroll $payroll, ?User $by = null): Transaction
     {
-        return DB::transaction(function () use ($payroll, $by): Transaction {
+        $transaction = DB::transaction(function () use ($payroll, $by): Transaction {
             $locked = Payroll::query()->whereKey($payroll->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status === PayrollStatus::Paid) {
@@ -74,11 +80,22 @@ class PayrollService
                 'date' => now()->toDateString(),
             ]);
         });
+
+        // E10 — after commit, outside the money transaction: HR + Finance/O-D.
+        // NO amount in the body; a notification failure never unwinds the expense
+        // or the attendance lock (ADR-0016 regression guard, 6-2).
+        $this->notifications->dispatch(
+            'payroll.paid',
+            $payroll,
+            fn (): PayrollPaidNotification => new PayrollPaidNotification($payroll),
+        );
+
+        return $transaction;
     }
 
     public function generate(string $periodStart, string $periodEnd, ?int $by = null): Payroll
     {
-        return DB::transaction(function () use ($periodStart, $periodEnd): Payroll {
+        $payroll = DB::transaction(function () use ($periodStart, $periodEnd): Payroll {
             // whereDate so the match ignores any time component on the date cast.
             $payroll = Payroll::query()
                 ->whereDate('period_start', $periodStart)
@@ -123,6 +140,20 @@ class PayrollService
 
             return $payroll->load('payslips');
         });
+
+        // E9 — a draft run is ready to pay. Fire only for a draft (an
+        // approved/paid run returned untouched is not a fresh "ready" event); the
+        // (event, entity_id, body) dedup keeps a re-generated draft at one knock.
+        // Body carries the period only — never a total or per-worker figure.
+        if ($payroll->status === PayrollStatus::Draft) {
+            $this->notifications->dispatch(
+                'payroll.generated',
+                $payroll,
+                fn (): PayrollGeneratedNotification => new PayrollGeneratedNotification($payroll),
+            );
+        }
+
+        return $payroll;
     }
 
     /**

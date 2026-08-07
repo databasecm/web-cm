@@ -45,6 +45,15 @@ class RecipientResolver
      */
     public function recipientsFor(string $event, Model $entity): Collection
     {
+        // Payroll events go to the internal payroll audience only — the very set
+        // PayrollPolicy::viewAny authorises (HR + Finance + overseers). Managers
+        // are never included, and workers are Employee records, not accounts, so
+        // they can never be recipients (§7). Salary figures live in the
+        // PayrollResource behind the action_url, never in a notification.
+        if (in_array($event, ['payroll.generated', 'payroll.paid'], true)) {
+            return $this->payrollAudience();
+        }
+
         // Financing events resolve off the financing's OWN parties (§6.5): the
         // owning consumer and the owning bank (bank_mitra_id) — never a project's
         // wider audience, and NEVER another bank. Handled before the project
@@ -169,6 +178,29 @@ class RecipientResolver
         return User::query()
             ->whereHas('role', fn ($query) => $query->where('name', Role::NAME_FINANCE))
             ->get();
+    }
+
+    /** All HR accounts. @return Collection<int, User> */
+    private function hr(): Collection
+    {
+        return User::query()
+            ->whereHas('role', fn ($query) => $query->where('name', Role::NAME_HR))
+            ->get();
+    }
+
+    /**
+     * Everyone allowed to see payroll (PayrollPolicy::viewAny): HR + Finance +
+     * overseers. Managers and workers are deliberately excluded.
+     *
+     * @return Collection<int, User>
+     */
+    private function payrollAudience(): Collection
+    {
+        return $this->hr()
+            ->merge($this->finance())
+            ->merge($this->overseers())
+            ->unique('id')
+            ->values();
     }
 
     /**

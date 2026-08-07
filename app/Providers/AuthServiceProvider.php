@@ -33,6 +33,7 @@ use App\Policies\FinancingDocumentPolicy;
 use App\Policies\FinancingPolicy;
 use App\Policies\InstallmentPolicy;
 use App\Policies\MaterialPolicy;
+use App\Policies\NotificationPolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\PayrollPolicy;
 use App\Policies\ProjectPolicy;
@@ -42,6 +43,7 @@ use App\Policies\ReportMediaPolicy;
 use App\Policies\SupplierPolicy;
 use App\Policies\TransactionPolicy;
 use App\Policies\UserPolicy;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -75,6 +77,10 @@ class AuthServiceProvider extends ServiceProvider
         Gate::policy(Payroll::class, PayrollPolicy::class);
         Gate::policy(Transaction::class, TransactionPolicy::class);
         Gate::policy(PurchaseOrder::class, PurchaseOrderPolicy::class);
+
+        // A notification is only ever read/marked by the account it addresses
+        // (Fase 7) — both the Filament bell and the consumer/Mandor API gate here.
+        Gate::policy(DatabaseNotification::class, NotificationPolicy::class);
 
         // Whether the actor may assign the given role + bidang to an account.
         // Backed by UserPolicy::assign so create/update share one rule set.

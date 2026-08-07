@@ -10,6 +10,8 @@ use App\Models\PoItem;
 use App\Models\PurchaseOrder;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\NotificationDispatcher;
+use App\Notifications\PurchaseOrderReceivedNotification;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,8 @@ use Illuminate\Support\Facades\DB;
  */
 class PurchaseOrderService
 {
+    public function __construct(private NotificationDispatcher $notifications) {}
+
     /**
      * Recompute each line subtotal (quantity × snapshot unit_price) and the PO
      * total (Σ subtotal), BigDecimal-exact. Called after items change.
@@ -80,7 +84,7 @@ class PurchaseOrderService
      */
     public function receive(PurchaseOrder $po, ?User $by = null): Transaction
     {
-        return DB::transaction(function () use ($po, $by): Transaction {
+        $transaction = DB::transaction(function () use ($po, $by): Transaction {
             $locked = PurchaseOrder::query()->whereKey($po->getKey())->lockForUpdate()->firstOrFail();
 
             if ($locked->status === PurchaseOrderStatus::Received) {
@@ -111,6 +115,16 @@ class PurchaseOrderService
                 'date' => now()->toDateString(),
             ]);
         });
+
+        // E11 — internal knock (bidang Manager + Finance), no price in the body.
+        // After commit; a notification failure never undoes the receipt/expense.
+        $this->notifications->dispatch(
+            'po.received',
+            $po,
+            fn (): PurchaseOrderReceivedNotification => new PurchaseOrderReceivedNotification($po->refresh()),
+        );
+
+        return $transaction;
     }
 
     /**

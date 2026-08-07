@@ -8,6 +8,8 @@ use App\Models\DailyReport;
 use App\Models\Project;
 use App\Models\ReportMedia;
 use App\Models\User;
+use App\Notifications\DailyReportCreatedNotification;
+use App\Notifications\NotificationDispatcher;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  */
 class DailyReportService
 {
+    public function __construct(private NotificationDispatcher $notifications) {}
+
     /**
      * File a daily report for a project (one per project per day).
      */
@@ -36,7 +40,7 @@ class DailyReportService
             }
         }
 
-        return DB::transaction(function () use ($project, $mandor, $date, $description, $progressNote, $clientId): DailyReport {
+        $report = DB::transaction(function () use ($project, $mandor, $date, $description, $progressNote, $clientId): DailyReport {
             $exists = DailyReport::query()
                 ->where('project_id', $project->id)
                 ->whereDate('date', $date)
@@ -56,6 +60,18 @@ class DailyReportService
                 'progress_note' => $progressNote,
             ]);
         });
+
+        // E5 — a KNOCK only (no report text/photo in the body); fire once, only
+        // for a genuinely new report (a re-synced duplicate returns early above).
+        if ($report->wasRecentlyCreated) {
+            $this->notifications->dispatch(
+                'daily_report.created',
+                $report,
+                fn (): DailyReportCreatedNotification => new DailyReportCreatedNotification($report),
+            );
+        }
+
+        return $report;
     }
 
     /**

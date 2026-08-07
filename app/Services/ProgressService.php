@@ -7,6 +7,8 @@ use App\Enums\InstallmentStatus;
 use App\Exceptions\InstallmentException;
 use App\Models\Installment;
 use App\Models\Project;
+use App\Notifications\NotificationDispatcher;
+use App\Notifications\ProgressUpdatedNotification;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +30,8 @@ use InvalidArgumentException;
  */
 class ProgressService
 {
+    public function __construct(private NotificationDispatcher $notifications) {}
+
     /**
      * Set a project's progress (Manager of its bidang; Mandor arrives in Fase 5)
      * and open any progress-due installments that the new progress now satisfies.
@@ -40,14 +44,29 @@ class ProgressService
             throw new InvalidArgumentException('Progres harus antara 0 dan 100.');
         }
 
-        return DB::transaction(function () use ($project, $value): Project {
+        $scaled = (string) $value->toScale(2, RoundingMode::HALF_UP);
+        $changed = (string) $project->progress_percent !== $scaled;
+
+        $project = DB::transaction(function () use ($project, $scaled): Project {
             // progress_percent change is audited via the project's Auditable trail.
-            $project->forceFill(['progress_percent' => (string) $value->toScale(2, RoundingMode::HALF_UP)])->save();
+            $project->forceFill(['progress_percent' => $scaled])->save();
 
             $this->openProgressInstallments($project);
 
             return $project;
         });
+
+        // E4 — only on a real change, after commit; percentage is progress, not
+        // money. A failure here never affects the progress/unlock outcome.
+        if ($changed) {
+            $this->notifications->dispatch(
+                'progress.updated',
+                $project,
+                fn (): ProgressUpdatedNotification => new ProgressUpdatedNotification($project),
+            );
+        }
+
+        return $project;
     }
 
     /**

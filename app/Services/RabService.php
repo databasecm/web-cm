@@ -7,6 +7,8 @@ use App\Enums\RabStatus;
 use App\Exceptions\RabException;
 use App\Models\Rab;
 use App\Models\User;
+use App\Notifications\NotificationDispatcher;
+use App\Notifications\RabFinalizedNotification;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,6 +22,8 @@ use Illuminate\Support\Facades\DB;
  */
 class RabService
 {
+    public function __construct(private NotificationDispatcher $notifications) {}
+
     /**
      * Submit a draft RAB to the consumer for approval.
      */
@@ -43,7 +47,7 @@ class RabService
             throw RabException::notSubmitted();
         }
 
-        return DB::transaction(function () use ($rab): Rab {
+        $rab = DB::transaction(function () use ($rab): Rab {
             $project = $rab->project;
 
             // A newly approved revision supersedes the prior approved RAB — the
@@ -65,5 +69,16 @@ class RabService
 
             return $rab;
         });
+
+        // E12 — the consumer and the bidang's Manager; NO RAB total in the body,
+        // and Finance is off-map (their concern is the payment, not the contract).
+        // After commit; a notification failure never unwinds the approval.
+        $this->notifications->dispatch(
+            'rab.finalized',
+            $rab,
+            fn (): RabFinalizedNotification => new RabFinalizedNotification($rab),
+        );
+
+        return $rab;
     }
 }

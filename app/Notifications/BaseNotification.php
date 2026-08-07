@@ -5,6 +5,7 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\SerializesModels;
 
 /**
  * The single notification mechanism (Fase 7).
@@ -23,7 +24,7 @@ use Illuminate\Notifications\Notification;
  */
 abstract class BaseNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SerializesModels;
 
     /**
      * Delivery channels, read from config so channels can be added at go-live

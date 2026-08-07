@@ -7,6 +7,9 @@ use App\Enums\ProjectStatus;
 use App\Exceptions\BastException;
 use App\Models\Bast;
 use App\Models\Project;
+use App\Notifications\BastIssuedNotification;
+use App\Notifications\BastSignedNotification;
+use App\Notifications\NotificationDispatcher;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +23,10 @@ use Illuminate\Support\Facades\DB;
  */
 class BastService
 {
-    public function __construct(private ProgressService $progress) {}
+    public function __construct(
+        private ProgressService $progress,
+        private NotificationDispatcher $notifications,
+    ) {}
 
     /**
      * Issue the draft BAST for a project. One per project (1—1): re-issuing is
@@ -36,7 +42,16 @@ class BastService
             throw BastException::alreadyIssued();
         }
 
-        return Bast::create(['project_id' => $project->id, 'file' => $file]);
+        $bast = Bast::create(['project_id' => $project->id, 'file' => $file]);
+
+        // E2 — the consumer and the bidang's Manager are told it's ready to sign.
+        $this->notifications->dispatch(
+            'bast.issued',
+            $bast,
+            fn (): BastIssuedNotification => new BastIssuedNotification($bast),
+        );
+
+        return $bast;
     }
 
     /**
@@ -58,7 +73,9 @@ class BastService
      */
     public function recordSignature(Bast $bast, BastParty $party, ?int $by = null): Bast
     {
-        return DB::transaction(function () use ($bast, $party, $by): Bast {
+        $becameSigned = false;
+
+        $bast = DB::transaction(function () use ($bast, $party, $by, &$becameSigned): Bast {
             match ($party) {
                 BastParty::Customer => $bast->forceFill(['signed_customer' => true, 'signed_customer_by' => $by]),
                 BastParty::Company => $bast->forceFill(['signed_company' => true, 'signed_company_by' => $by]),
@@ -69,9 +86,22 @@ class BastService
             if ($bast->bothPartiesSigned() && ! $bast->isSigned()) {
                 $bast->markSigned(); // status=signed, signed_at stamped (guarded)
                 $this->progress->openBastInstallments($bast->project);
+                $becameSigned = true;
             }
 
             return $bast;
         });
+
+        // E3 — fire ONCE, only on the transition to signed, and only after the
+        // transaction commits. Re-signing an already-signed BAST notifies no one.
+        if ($becameSigned) {
+            $this->notifications->dispatch(
+                'bast.signed',
+                $bast,
+                fn (): BastSignedNotification => new BastSignedNotification($bast),
+            );
+        }
+
+        return $bast;
     }
 }

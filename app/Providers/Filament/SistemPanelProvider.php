@@ -31,6 +31,10 @@ class SistemPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            // In-app bell/inbox for internal staff (Fase 7). Reads the same
+            // `notifications` table the services write to via the database
+            // channel; each account sees only its own (NotificationPolicy).
+            ->databaseNotifications()
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([

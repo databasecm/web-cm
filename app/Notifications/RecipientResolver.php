@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Enums\Bidang;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -28,14 +30,48 @@ use Illuminate\Database\Eloquent\Model;
 class RecipientResolver
 {
     /**
-     * Recipients for a business event about `$entity`. Fail-closed: unknown
-     * events resolve to nobody until an explicit, policy-backed rule is added.
+     * Recipients for a business event about `$entity`. Fail-closed: an event
+     * with no rule, or one whose subject has no project, resolves to nobody.
+     *
+     * Every rule below mirrors an EXISTING policy/relation — never a new one:
+     *   - project owner            = Project::konsumen (ProjectPolicy::owns)
+     *   - Finance + overseers      = PaymentPolicy::record (who books a payment)
+     *   - Manager of the bidang    = ProjectPolicy manager clause (isManager +
+     *                                bidang === project bidang)
      *
      * @return Collection<int, User>
      */
     public function recipientsFor(string $event, Model $entity): Collection
     {
-        return User::query()->whereRaw('1 = 0')->get();
+        $project = $this->projectOf($entity);
+
+        if ($project === null) {
+            return $this->none();
+        }
+
+        /** @var Collection<int, User> $recipients */
+        $recipients = match ($event) {
+            // E1 — a term/pelunasan was paid: the paying consumer plus whoever
+            // may book it in the cash book (Finance + Owner/Direktur).
+            'payment.paid' => $this->owner($project)
+                ->merge($this->finance())
+                ->merge($this->overseers()),
+
+            // E2 — BAST issued: the consumer who will sign, and the bidang's
+            // Manager who runs the handover.
+            'bast.issued' => $this->owner($project)
+                ->merge($this->managersOfBidang($project->bidang)),
+
+            // E3 — BAST signed: same, plus Finance (the pelunasan term is now
+            // open to be paid).
+            'bast.signed' => $this->owner($project)
+                ->merge($this->managersOfBidang($project->bidang))
+                ->merge($this->finance()),
+
+            default => $this->none(),
+        };
+
+        return $recipients->unique('id')->values();
     }
 
     /**
@@ -67,5 +103,62 @@ class RecipientResolver
         return $candidates
             ->filter(fn (User $user) => $user->can($ability, $entity))
             ->values();
+    }
+
+    /**
+     * The owning consumer of a project (ProjectPolicy::owns), as a 0-or-1 set.
+     *
+     * @return Collection<int, User>
+     */
+    private function owner(Project $project): Collection
+    {
+        return User::query()->whereKey($project->konsumen_id)->get();
+    }
+
+    /**
+     * All Finance accounts (PaymentPolicy::record — the cash-book recorders).
+     *
+     * @return Collection<int, User>
+     */
+    private function finance(): Collection
+    {
+        return User::query()
+            ->whereHas('role', fn ($query) => $query->where('name', Role::NAME_FINANCE))
+            ->get();
+    }
+
+    /**
+     * Managers whose bidang matches the project's (the ProjectPolicy manager
+     * clause). Overseers are intentionally NOT swept in here — the BAST map
+     * addresses the bidang's Manager, not every overseer.
+     *
+     * @return Collection<int, User>
+     */
+    private function managersOfBidang(?Bidang $bidang): Collection
+    {
+        if ($bidang === null) {
+            return $this->none();
+        }
+
+        return User::query()
+            ->where('bidang', $bidang)
+            ->whereHas('role', fn ($query) => $query->where('name', Role::NAME_MANAGER))
+            ->get();
+    }
+
+    /** The project a business subject hangs off, or null. */
+    private function projectOf(Model $entity): ?Project
+    {
+        if ($entity instanceof Project) {
+            return $entity;
+        }
+
+        return method_exists($entity, 'project') ? $entity->project : null;
+    }
+
+    /** @return Collection<int, User> */
+    private function none(): Collection
+    {
+        return User::query()->whereRaw('1 = 0')->get();
     }
 }

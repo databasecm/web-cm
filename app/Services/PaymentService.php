@@ -9,6 +9,8 @@ use App\Exceptions\PaymentException;
 use App\Models\Installment;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\NotificationDispatcher;
+use App\Notifications\PaymentPaidNotification;
 use App\Services\Payment\PaymentGateway;
 use App\Services\Payment\PaymentInstruction;
 use Brick\Math\BigDecimal;
@@ -32,7 +34,10 @@ use Illuminate\Support\Facades\DB;
  */
 class PaymentService
 {
-    public function __construct(private PaymentGateway $gateway) {}
+    public function __construct(
+        private PaymentGateway $gateway,
+        private NotificationDispatcher $notifications,
+    ) {}
 
     /**
      * Create a payment charge for an installment through the gateway and store
@@ -73,7 +78,7 @@ class PaymentService
      */
     public function pay(Installment $installment, ?User $by = null): Transaction
     {
-        return DB::transaction(function () use ($installment, $by): Transaction {
+        $transaction = DB::transaction(function () use ($installment, $by): Transaction {
             // Lock the row so concurrent payments cannot both pass the guard.
             $locked = Installment::query()->whereKey($installment->getKey())->lockForUpdate()->firstOrFail();
 
@@ -104,5 +109,15 @@ class PaymentService
                 'date' => now()->toDateString(),
             ]);
         });
+
+        // Notify AFTER commit — a knock, no amount. Never inside the money
+        // transaction, and any failure here leaves the payment intact (E1).
+        $this->notifications->dispatch(
+            'payment.paid',
+            $installment,
+            fn (): PaymentPaidNotification => new PaymentPaidNotification($installment),
+        );
+
+        return $transaction;
     }
 }

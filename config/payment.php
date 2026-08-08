@@ -36,6 +36,11 @@ return [
         'client_key' => env('MIDTRANS_CLIENT_KEY'),
         'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
 
+        // Core API bank_transfer VA bank (bca/bni/bri/permata/…) and the prefix
+        // used to derive a deterministic order_id from an installment.
+        'bank' => env('MIDTRANS_BANK', 'bca'),
+        'order_prefix' => env('MIDTRANS_ORDER_PREFIX', 'CM'),
+
         // After the callback SIGNATURE checks out, also confirm the transaction
         // against Midtrans' status API (defense-in-depth if the ServerKey leaks).
         // Recommended by Midtrans; toggle off only for isolated testing.

@@ -39,7 +39,13 @@ Route::prefix('v1')->group(function () {
     // Payment gateway callback — PUBLIC (no login). This is the gateway's
     // channel; trust comes from verifying the callback signature, not auth
     // (Fase 3-6). Verified callbacks are settled on a queue.
-    Route::post('payments/webhook', PaymentWebhookController::class);
+    //
+    // Hardened (ADR-0013): IP allowlist (config-driven; empty = allow all) then
+    // a per-IP throttle — rejecting foreign/flooding callers BEFORE the
+    // controller verifies the signature. The signature stays the sole basis of
+    // authenticity; these are only abuse bounds.
+    Route::post('payments/webhook', PaymentWebhookController::class)
+        ->middleware(['payment.webhook.ip', 'throttle:payment-webhook']);
 
     // Consumer (Konsumen L6) channel — token auth + consumer-only; per-record
     // ownership enforced by policies (Fase 2B-7).

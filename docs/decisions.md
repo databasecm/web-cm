@@ -392,7 +392,35 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 ## ADR-0002 — Tetap di Laravel 11.x; upgrade ke 12.x ditunda (pre-produksi)
 
 - **Tanggal:** 2026-06-25
-- **Status:** Diterima
+- **Status:** **SELESAI DIEKSEKUSI (2026-08-08)** — upgrade ke Laravel 12
+  dikerjakan sebagai langkah pertama jalur pra-produksi go-live.
+
+- **Pembaruan eksekusi (2026-08-08):** `laravel/framework` dinaikkan
+  `^11.31 → ^12.0`; ter-resolve ke **v12.65.0** via
+  `composer update laravel/framework --with-all-dependencies` (satu PR).
+  - **Ketiga advisory ditutup** (Signed URL Path Confusion — relevan ke signed
+    URL media ADR-0015; 2× CRLF email rule).
+  - **Tanpa bump paket pihak ketiga:** seluruh dependency sudah berada di versi
+    yang mendukung L12 — Filament v3.3.54, spatie/laravel-permission 6.25.0,
+    barryvdh/laravel-dompdf v3.1.2, laravel/fortify v1.37.2, laravel/sanctum
+    v4.3.2, brick/math 0.14.8. Toolchain test sudah L12-ready sebelumnya
+    (Pest v3.8.6, PHPUnit 11.5.50, Carbon v3.13.x, skeleton slim
+    `Application::configure`).
+  - **Tanpa perubahan config** pada file kustom kita (media/notifications/cm/
+    company app-specific; sanctum/permission vendor tak berubah);
+    `config:cache` sukses (tak ada key framework yang hilang).
+  - **Tanpa perubahan kode aplikasi & tanpa migrasi DB.** Suite penuh **590
+    hijau** di L12; Pint bersih. Breaking-change L12 tak menyentuh kita
+    (`HasUuids` tak dipakai → UUIDv7 N/A; rule validasi `image`/SVG tak
+    dipakai — `'image'` di kode = nama profil MediaDescriptor kita).
+  - `CLAUDE.md §3` diperbarui: stack terkunci **Laravel 11 → Laravel 12**.
+
+- **Konteks:** `composer audit` melaporkan 3 advisory pada `laravel/framework`
+  (Temporary Signed URL Path Confusion; CRLF injection in default email rule —
+  dua advisory). Versi perbaikan **hanya ada di Laravel 12** (`12.60.0` dan
+  `12.61.1`+); **seluruh branch 11.x — termasuk 11.54.0 (terbaru) — tetap
+  terdampak**. Tidak ada rilis 11.x yang memuat fix, sehingga "update dalam 11.x"
+  tidak dapat menutup ketiganya.
 - **Konteks:** `composer audit` melaporkan 3 advisory pada `laravel/framework`
   (Temporary Signed URL Path Confusion; CRLF injection in default email rule —
   dua advisory). Versi perbaikan **hanya ada di Laravel 12** (`12.60.0` dan

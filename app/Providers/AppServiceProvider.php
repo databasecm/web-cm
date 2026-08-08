@@ -39,5 +39,15 @@ class AppServiceProvider extends ServiceProvider
         // (ADR-0003) — generous enough for live chat polling, tight enough to
         // bound abuse of an endpoint that needs no login.
         RateLimiter::for('guest-consultation', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
+
+        // Throttle the public payment webhook per source IP (ADR-0013) — a cap on
+        // callback floods (abuse/DoS), NOT a replacement for the signature. Limit
+        // is read from config live, so it is env-overridable without code change.
+        RateLimiter::for('payment-webhook', function (Request $request): Limit {
+            $max = (int) config('payment.webhook.throttle.max_attempts', 60);
+            $decaySeconds = (int) config('payment.webhook.throttle.decay_seconds', 60);
+
+            return new Limit($request->ip(), $max, max(1, (int) ceil($decaySeconds / 60)));
+        });
     }
 }

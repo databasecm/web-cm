@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AllowlistPaymentWebhookIp;
 use App\Http\Middleware\EnsureConsumer;
 use App\Http\Middleware\EnsureMandor;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'consumer' => EnsureConsumer::class,
             'mandor' => EnsureMandor::class,
+            'payment.webhook.ip' => AllowlistPaymentWebhookIp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

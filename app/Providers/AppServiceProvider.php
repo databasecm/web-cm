@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\Payment\PaymentGateway;
 use App\Services\Payment\SimulatedGateway;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -16,10 +17,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Default payment gateway: the credential-free simulated one (Fase 3-5,
-        // ADR-0012). A real Midtrans/Xendit gateway later rebinds this interface
-        // without touching the payment flow.
-        $this->app->bind(PaymentGateway::class, SimulatedGateway::class);
+        // Payment gateway is chosen by config (ADR-0012/0013): PAYMENT_GATEWAY
+        // selects the alias in config/payment.php. Default 'simulated' — the
+        // credential-free gateway for dev/test/CI. Production sets 'midtrans'.
+        // An unknown alias fails safe to the simulated gateway (never a hard
+        // crash, never an accidental real charge).
+        $this->app->bind(PaymentGateway::class, function (Application $app): PaymentGateway {
+            $alias = (string) config('payment.gateway', 'simulated');
+            $class = config("payment.gateways.{$alias}", SimulatedGateway::class);
+
+            return $app->make($class);
+        });
     }
 
     /**

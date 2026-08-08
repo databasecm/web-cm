@@ -35,4 +35,14 @@ class PaymentException extends RuntimeException
     {
         return new self('Callback pembayaran tidak sah.');
     }
+
+    /**
+     * The gateway rejected the charge, or returned a malformed/incomplete
+     * response (Fase G-3). No pay instruction is produced and the installment
+     * keeps its status — the caller (PaymentService) never stores a fake charge.
+     */
+    public static function chargeFailed(?string $detail = null): self
+    {
+        return new self(trim('Gagal membuat tagihan di gateway pembayaran. '.(string) $detail));
+    }
 }

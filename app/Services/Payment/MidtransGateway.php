@@ -4,8 +4,9 @@ namespace App\Services\Payment;
 
 use App\Exceptions\PaymentException;
 use App\Models\Installment;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
 
 /**
  * Real Midtrans gateway (Core API / VA) behind the PaymentGateway interface
@@ -14,16 +15,69 @@ use RuntimeException;
  * third-party SDK — HTTP-direct (decision G-1).
  *
  * G-2 implements verifyCallback(): the gate between a real payment and a forged
- * one. G-3 will add createCharge() (Core API VA).
+ * one. G-3 implements createCharge(): a Core API bank_transfer VA charge.
+ *
+ * This class is intentionally free of business-state guards: PaymentService
+ * enforces §7 (only an UNLOCKED term is charged) and the "one charge per term"
+ * idempotency (a term that already has a gateway_ref returns the same
+ * instruction) BEFORE calling here (Fase 3-5). The gateway only talks to
+ * Midtrans and maps the response.
  */
 class MidtransGateway implements PaymentGateway
 {
     /** Transaction statuses that can mean "paid" (subject to the fraud check). */
     private const PAID_STATUSES = ['settlement', 'capture'];
 
+    /**
+     * Open a Core API bank_transfer VA charge for the installment and return the
+     * pay instruction. order_id is derived deterministically from the installment
+     * (the bridge that verifyCallback maps back). gross_amount is the exact
+     * installment amount as an INTEGER of rupiah — Midtrans IDR carries no
+     * decimals. A non-2xx or a response without a VA raises PaymentException so
+     * the caller never stores a fake charge.
+     */
     public function createCharge(Installment $installment): PaymentInstruction
     {
-        throw new RuntimeException('MidtransGateway::createCharge belum diimplementasikan (Fase G-3).');
+        $orderId = $this->orderIdFor($installment);
+        $amount = BigDecimal::of((string) $installment->amount);
+
+        // Midtrans IDR gross_amount is an integer (no decimals); our termin
+        // amounts are exact rupiah — round to the nearest whole rupiah safely.
+        $grossInt = (int) (string) $amount->toScale(0, RoundingMode::HALF_UP);
+
+        $base = config('payment.midtrans.is_production', false)
+            ? 'https://api.midtrans.com'
+            : 'https://api.sandbox.midtrans.com';
+
+        $response = Http::withBasicAuth((string) config('payment.midtrans.server_key', ''), '')
+            ->acceptJson()
+            ->asJson()
+            ->post("{$base}/v2/charge", [
+                'payment_type' => 'bank_transfer',
+                'transaction_details' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => $grossInt,
+                ],
+                'bank_transfer' => [
+                    'bank' => (string) config('payment.midtrans.bank', 'bca'),
+                ],
+            ]);
+
+        if (! $response->successful()) {
+            throw PaymentException::chargeFailed('HTTP '.$response->status());
+        }
+
+        $vaNumber = $this->extractVaNumber($response->json());
+
+        if ($vaNumber === null) {
+            throw PaymentException::chargeFailed('VA tidak ditemukan pada respons gateway.');
+        }
+
+        return new PaymentInstruction(
+            vaNumber: $vaNumber,
+            gatewayRef: $orderId,
+            amount: (string) $amount->toScale(2, RoundingMode::HALF_UP),
+        );
     }
 
     /**
@@ -127,5 +181,24 @@ class MidtransGateway implements PaymentGateway
     private function stringField(array $payload, string $key): string
     {
         return trim((string) ($payload[$key] ?? ''));
+    }
+
+    /** Deterministic order_id for a term — the same value verifyCallback maps back. */
+    private function orderIdFor(Installment $installment): string
+    {
+        return sprintf('%s-%d', (string) config('payment.midtrans.order_prefix', 'CM'), $installment->id);
+    }
+
+    /**
+     * Pull the VA number from a Core API bank_transfer response. BCA/BNI/BRI use
+     * `va_numbers[0].va_number`; Permata uses `permata_va_number`.
+     *
+     * @param  array<string, mixed>|null  $body
+     */
+    private function extractVaNumber(?array $body): ?string
+    {
+        $va = $body['va_numbers'][0]['va_number'] ?? $body['permata_va_number'] ?? null;
+
+        return is_string($va) && $va !== '' ? $va : null;
     }
 }

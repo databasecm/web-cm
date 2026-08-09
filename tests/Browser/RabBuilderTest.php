@@ -123,11 +123,12 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             ->waitForTextIn('@rab-preview', '769.230,00', 15)
 
             ->press('Simpan RAB')
-            // Don't assert on the ephemeral success toast (it auto-dismisses and
-            // is easy to miss). Wait instead for the PERSISTENT signal that the
-            // action finished: the builder modal closes only once the RAB is
-            // saved. The authoritative ADR-0009 proof is the DB assertion below.
-            ->waitUntilMissing('@rab-ahsap', 15);
+            // Don't wait on transient UI (a toast that auto-dismisses, or a modal
+            // that may not close). Poll the DB — the ADR-0009 truth — until the
+            // built RAB carries a RabItem for the AHSAP picked inside the Repeater.
+            ->waitUsing(20, 0.5, fn (): bool => Rab::where('project_id', $project->id)
+                ->whereHas('items', fn ($q) => $q->where('ahsap_id', $ahsap->id))
+                ->exists());
     });
 
     // The real proof lives in the DB: the nested AHSAP survived the save.

@@ -91,30 +91,16 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
         loginPast2fa($browser, $manager, $secret)
             ->visit("/sistem/projects/{$project->id}")
             ->waitFor('.fi-main', 20)                          // page shell mounted
-            // The RAB builder lives on a Livewire-LAZY relation manager (loads on
-            // viewport intersection). Wait for its non-lazy wrapper, then scroll it
-            // into view so Livewire hydrates it and the header action renders.
+            // The project view stacks several relation managers as TABS (Desain,
+            // RAB, Termin, BAST); Filament renders only the ACTIVE tab, and Desain
+            // is active by default. Bring the tabs into view and activate the "RAB"
+            // tab so its (lazy) table and the "Buat RAB" header action render.
             ->waitFor('.fi-resource-relation-managers', 20)
-            ->scrollIntoView('.fi-resource-relation-managers');
-
-        try {
-            $browser->waitForText('Buat RAB', 30);
-        } catch (Throwable $e) {
-            $html = $browser->driver->getPageSource();
-            $pos = strpos($html, 'fi-resource-relation-managers');
-            $region = $pos !== false ? substr($html, $pos, 7000) : substr($html, 0, 5000);
-            // Strip attributes that bloat the slice without helping diagnosis.
-            $region = preg_replace('/\s(wire:snapshot|x-data)="[^"]*"/', '', $region);
-            fwrite(STDERR, '[DIAG] '.json_encode([
-                'buatRab' => str_contains($html, 'Buat RAB'),
-                'headerToolbar' => str_contains($html, 'fi-ta-header-toolbar'),
-                'emptyState' => str_contains($html, 'fi-ta-empty-state'),
-            ]).PHP_EOL."[DIAG-HTML]\n".$region.PHP_EOL.'[/DIAG-HTML]'.PHP_EOL);
-
-            throw $e;
-        }
-
-        $browser->press('Buat RAB')
+            ->scrollIntoView('.fi-resource-relation-managers')
+            ->waitForText('RAB', 20)
+            ->press('RAB')
+            ->waitForText('Buat RAB', 30)
+            ->press('Buat RAB')
             // Modal open: the Repeater starts empty — add one row.
             ->waitFor('@rab-add-item', 15)
             ->click('@rab-add-item')

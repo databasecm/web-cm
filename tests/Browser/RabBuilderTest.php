@@ -123,7 +123,11 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             ->waitForTextIn('@rab-preview', '769.230,00', 15)
 
             ->press('Simpan RAB')
-            ->waitForText('RAB dibuat.', 15);    // success notification
+            // Don't assert on the ephemeral success toast (it auto-dismisses and
+            // is easy to miss). Wait instead for the PERSISTENT signal that the
+            // action finished: the builder modal closes only once the RAB is
+            // saved. The authoritative ADR-0009 proof is the DB assertion below.
+            ->waitUntilMissing('@rab-ahsap', 15);
     });
 
     // The real proof lives in the DB: the nested AHSAP survived the save.

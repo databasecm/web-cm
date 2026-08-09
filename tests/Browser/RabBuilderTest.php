@@ -101,21 +101,15 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             $browser->waitForText('Buat RAB', 30);
         } catch (Throwable $e) {
             $html = $browser->driver->getPageSource();
-            $serve = @file_get_contents('/tmp/serve.log');
-            $console = '';
-            try {
-                foreach ($browser->driver->manage()->getLog('browser') as $line) {
-                    $console .= ($line['level'] ?? '').': '.($line['message'] ?? '').PHP_EOL;
-                }
-            } catch (Throwable $x) {
-                $console = '(console log unavailable: '.$x->getMessage().')';
-            }
+            $pos = strpos($html, 'fi-resource-relation-managers');
+            $region = $pos !== false ? substr($html, $pos, 7000) : substr($html, 0, 5000);
+            // Strip attributes that bloat the slice without helping diagnosis.
+            $region = preg_replace('/\s(wire:snapshot|x-data)="[^"]*"/', '', $region);
             fwrite(STDERR, '[DIAG] '.json_encode([
                 'buatRab' => str_contains($html, 'Buat RAB'),
-                'wrapper' => str_contains($html, 'fi-resource-relation-managers'),
-            ]).PHP_EOL
-                ."[SERVE-LOG-TAIL]\n".($serve ? substr($serve, -4000) : '(none)').PHP_EOL
-                ."[CONSOLE]\n".$console.PHP_EOL);
+                'headerToolbar' => str_contains($html, 'fi-ta-header-toolbar'),
+                'emptyState' => str_contains($html, 'fi-ta-empty-state'),
+            ]).PHP_EOL."[DIAG-HTML]\n".$region.PHP_EOL.'[/DIAG-HTML]'.PHP_EOL);
 
             throw $e;
         }

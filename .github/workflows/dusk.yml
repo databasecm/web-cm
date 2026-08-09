@@ -1,0 +1,89 @@
+name: Dusk (E2E)
+
+# Browser end-to-end smoke (ADR-0009), SEPARATE from the main CI gate so its
+# extra cost/flakiness never blocks the Pint+Pest gate. Keep this workflow OUT of
+# the branch's required checks until it has proven stable (it is informational
+# for now); Pest in ci.yml remains the mandatory gate.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: dusk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dusk:
+    name: Dusk browser smoke (PHP 8.4, MySQL 8)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: web_cm
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, dom, curl, pdo_mysql, redis, gd, bcmath, intl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Dusk environment
+        run: |
+          cp .env.dusk .env
+          php artisan key:generate
+          php artisan migrate --force
+
+      - name: Match ChromeDriver to the runner's Chrome
+        run: php artisan dusk:chrome-driver --detect
+
+      - name: Serve the application
+        run: |
+          php artisan serve --host=127.0.0.1 --port=8000 --no-reload > /tmp/serve.log 2>&1 &
+          # Wait until the server answers before running the browser.
+          for i in $(seq 1 30); do
+            if curl -sSf http://127.0.0.1:8000 > /dev/null; then echo "up"; break; fi
+            sleep 1
+          done
+
+      - name: Run Dusk
+        run: php artisan dusk
+
+      - name: Upload Dusk artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-artifacts
+          path: |
+            tests/Browser/screenshots
+            tests/Browser/console
+            /tmp/serve.log
+          if-no-files-found: ignore
+          retention-days: 7

@@ -28,8 +28,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('projects', function (Blueprint $table) {
+            // MySQL order: drop the FK first (it depends on the index), then the
+            // unique index, then the column. Dropping the unique before the FK
+            // fails — the constraint still needs an index on the column.
+            $table->dropForeign(['consultation_id']);
             $table->dropUnique(['consultation_id']);
-            $table->dropConstrainedForeignId('consultation_id');
+            $table->dropColumn('consultation_id');
         });
     }
 };

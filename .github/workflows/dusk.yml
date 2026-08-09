@@ -59,6 +59,11 @@ jobs:
         run: |
           cp .env.dusk .env
           php artisan key:generate
+          # `php artisan dusk` swaps .env.dusk over .env when it boots the test
+          # process, so the freshly generated APP_KEY must live in .env.dusk too —
+          # otherwise the test process boots keyless and any encrypt()/decrypt()
+          # (e.g. the 2FA secret) throws MissingAppKeyException.
+          cp .env .env.dusk
           php artisan migrate --force
 
       - name: Match ChromeDriver to the runner's Chrome

@@ -90,16 +90,23 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
     $this->browse(function (Browser $browser) use ($manager, $secret, $project, $ahsap) {
         loginPast2fa($browser, $manager, $secret)
             ->visit("/sistem/projects/{$project->id}")
-            ->waitForText('Buat RAB')
+            ->waitFor('.fi-main', 20)                                  // page shell mounted
+            // The RAB relation manager is lazy — scroll it into view so its
+            // deferred load fires, then wait generously for the cold first render.
+            ->script('window.scrollTo(0, document.body.scrollHeight)');
+
+        $browser->waitForText('Buat RAB', 30)
             ->press('Buat RAB')
             // Modal open: the Repeater starts empty — add one row.
-            ->waitFor('@rab-add-item')
+            ->waitFor('@rab-add-item', 15)
             ->click('@rab-add-item')
-            ->waitFor('@rab-ahsap')
+            ->waitFor('@rab-ahsap', 15)
 
-            // Pick the AHSAP in the Choices.js Select nested in the Repeater.
+            // Pick the AHSAP in the Choices.js Select nested in the Repeater
+            // (the JS widget loads lazily, so wait for its inner control first).
+            ->waitFor('@rab-ahsap .choices__inner', 15)
             ->click('@rab-ahsap .choices__inner')
-            ->waitFor('@rab-ahsap .choices__list--dropdown [data-value="'.$ahsap->id.'"]')
+            ->waitFor('@rab-ahsap .choices__list--dropdown [data-value="'.$ahsap->id.'"]', 15)
             ->click('@rab-ahsap .choices__list--dropdown [data-value="'.$ahsap->id.'"]')
 
             // Volume 3 (replace the default 1), then blur to commit the live field.
@@ -109,10 +116,10 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
 
             // The live preview reflecting BOTH nested values proves the Select did
             // not get stripped in the browser, and doubles as a commit barrier.
-            ->waitForTextIn('@rab-preview', '769.230,00')
+            ->waitForTextIn('@rab-preview', '769.230,00', 15)
 
             ->press('Simpan RAB')
-            ->waitForText('RAB dibuat.');       // success notification
+            ->waitForText('RAB dibuat.', 15);    // success notification
     });
 
     // The real proof lives in the DB: the nested AHSAP survived the save.

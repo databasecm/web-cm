@@ -90,13 +90,28 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
     $this->browse(function (Browser $browser) use ($manager, $secret, $project, $ahsap) {
         loginPast2fa($browser, $manager, $secret)
             ->visit("/sistem/projects/{$project->id}")
-            ->waitFor('.fi-main', 20)                                  // page shell mounted
-            // The RAB relation manager is lazy — scroll it into view so its
-            // deferred load fires, then wait generously for the cold first render.
-            ->script('window.scrollTo(0, document.body.scrollHeight)');
+            ->waitFor('.fi-main', 20)                          // page shell mounted
+            // The RAB builder lives on a Livewire-LAZY relation manager (loads on
+            // viewport intersection). Wait for its non-lazy wrapper, then scroll it
+            // into view so Livewire hydrates it and the header action renders.
+            ->waitFor('.fi-resource-relation-managers', 20)
+            ->scrollIntoView('.fi-resource-relation-managers');
 
-        $browser->waitForText('Buat RAB', 30)
-            ->press('Buat RAB')
+        try {
+            $browser->waitForText('Buat RAB', 30);
+        } catch (Throwable $e) {
+            $html = $browser->driver->getPageSource();
+            fwrite(STDERR, '[DIAG] '.json_encode([
+                'buatRab' => str_contains($html, 'Buat RAB'),
+                'wrapper' => str_contains($html, 'fi-resource-relation-managers'),
+                'table' => str_contains($html, 'fi-ta-'),
+                'whoops' => str_contains($html, 'Whoops') || str_contains($html, 'Exception'),
+            ]).PHP_EOL);
+
+            throw $e;
+        }
+
+        $browser->press('Buat RAB')
             // Modal open: the Repeater starts empty — add one row.
             ->waitFor('@rab-add-item', 15)
             ->click('@rab-add-item')

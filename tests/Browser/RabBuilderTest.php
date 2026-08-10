@@ -122,13 +122,32 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             // not get stripped in the browser, and doubles as a commit barrier.
             ->waitForTextIn('@rab-preview', '769.230,00', 15)
 
-            ->press('Simpan RAB')
-            // Don't wait on transient UI (a toast that auto-dismisses, or a modal
-            // that may not close). Poll the DB — the ADR-0009 truth — until the
-            // built RAB carries a RabItem for the AHSAP picked inside the Repeater.
-            ->waitUsing(20, 0.5, fn (): bool => Rab::where('project_id', $project->id)
+            ->press('Simpan RAB');
+
+        // Poll the DB — the ADR-0009 truth — until the built RAB carries a RabItem
+        // for the AHSAP picked inside the Repeater. On timeout, dump why the save
+        // didn't land (modal state / validation / submit button / server error).
+        try {
+            $browser->waitUsing(20, 0.5, fn (): bool => Rab::where('project_id', $project->id)
                 ->whereHas('items', fn ($q) => $q->where('ahsap_id', $ahsap->id))
                 ->exists());
+        } catch (Throwable $e) {
+            $html = $browser->driver->getPageSource();
+            $fpos = strpos($html, 'fi-modal-footer');
+            $footer = $fpos !== false ? substr($html, $fpos, 2500) : '(no fi-modal-footer in DOM)';
+            $footer = preg_replace('/\s(wire:snapshot|x-data|wire:key|wire:model[.\w]*)="[^"]*"/', '', $footer);
+            $serve = @file_get_contents('/tmp/serve.log');
+            fwrite(STDERR, '[DIAG] '.json_encode([
+                'modalOpen' => str_contains($html, 'rab-ahsap'),
+                'validationError' => str_contains($html, 'fi-fo-field-wrp-error-message'),
+                'simpanBtnPresent' => str_contains($html, 'Simpan RAB'),
+                'rabInDb' => Rab::where('project_id', $project->id)->count(),
+            ]).PHP_EOL
+                ."[MODAL-FOOTER]\n".$footer.PHP_EOL
+                ."[SERVE-TAIL]\n".($serve ? substr($serve, -2500) : '(none)').PHP_EOL);
+
+            throw $e;
+        }
     });
 
     // The real proof lives in the DB: the nested AHSAP survived the save.

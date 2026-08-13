@@ -133,18 +133,27 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
                 ->exists());
         } catch (Throwable $e) {
             $html = $browser->driver->getPageSource();
-            $fpos = strpos($html, 'fi-modal-footer');
-            $footer = $fpos !== false ? substr($html, $fpos, 2500) : '(no fi-modal-footer in DOM)';
-            $footer = preg_replace('/\s(wire:snapshot|x-data|wire:key|wire:model[.\w]*)="[^"]*"/', '', $footer);
-            $serve = @file_get_contents('/tmp/serve.log');
+            // Pull out every field-level validation message text.
+            $errs = [];
+            $off = 0;
+            while (($p = strpos($html, 'fi-fo-field-wrp-error-message', $off)) !== false) {
+                $gt = strpos($html, '>', $p);
+                $lt = $gt !== false ? strpos($html, '<', $gt) : false;
+                if ($gt !== false && $lt !== false) {
+                    $t = trim(substr($html, $gt + 1, $lt - $gt - 1));
+                    if ($t !== '') {
+                        $errs[] = $t;
+                    }
+                }
+                $off = $p + 30;
+            }
+            $log = @file_get_contents(base_path('storage/logs/laravel.log'));
             fwrite(STDERR, '[DIAG] '.json_encode([
                 'modalOpen' => str_contains($html, 'rab-ahsap'),
-                'validationError' => str_contains($html, 'fi-fo-field-wrp-error-message'),
-                'simpanBtnPresent' => str_contains($html, 'Simpan RAB'),
                 'rabInDb' => Rab::where('project_id', $project->id)->count(),
+                'fieldErrors' => $errs,
             ]).PHP_EOL
-                ."[MODAL-FOOTER]\n".$footer.PHP_EOL
-                ."[SERVE-TAIL]\n".($serve ? substr($serve, -2500) : '(none)').PHP_EOL);
+                ."[LARAVEL-LOG-TAIL]\n".($log ? substr($log, -3500) : '(none)').PHP_EOL);
 
             throw $e;
         }

@@ -106,12 +106,18 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             ->click('@rab-add-item')
             ->waitFor('@rab-ahsap', 15)
 
-            // Pick the AHSAP in the Choices.js Select nested in the Repeater
-            // (the JS widget loads lazily, so wait for its inner control first).
+            // Pick the AHSAP the "human" way: open the Choices.js widget, TYPE the
+            // name so it runs a real search, then ENTER to select the highlighted
+            // option — this exercises Choices' full setChoiceByValue selection path
+            // (proper bookkeeping), unlike clicking the raw [data-value] node which
+            // only set enough state for the live preview but not for submit-time
+            // dehydration (the A-vs-B disambiguation for the "aHSAP required" error).
             ->waitFor('@rab-ahsap .choices__inner', 15)
             ->click('@rab-ahsap .choices__inner')
-            ->waitFor('@rab-ahsap .choices__list--dropdown [data-value="'.$ahsap->id.'"]', 15)
-            ->click('@rab-ahsap .choices__list--dropdown [data-value="'.$ahsap->id.'"]')
+            ->waitFor('@rab-ahsap input', 10)
+            ->type('@rab-ahsap input', 'Pasang Bata Uji E2E')
+            ->waitFor('@rab-ahsap .choices__list--dropdown .choices__item--selectable', 15)
+            ->keys('@rab-ahsap input', ['{enter}'])
 
             // Volume 3 (replace the default 1), then blur to commit the live field.
             ->clear('@rab-volume input')

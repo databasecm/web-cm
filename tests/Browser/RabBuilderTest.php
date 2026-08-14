@@ -114,10 +114,13 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             // dehydration (the A-vs-B disambiguation for the "aHSAP required" error).
             ->waitFor('@rab-ahsap .choices__inner', 15)
             ->click('@rab-ahsap .choices__inner')
-            ->waitFor('@rab-ahsap input', 10)
-            ->type('@rab-ahsap input', 'Pasang Bata Uji E2E')
+            // Type into the dropdown's SEARCH box (not the hidden inner cloned
+            // input `@rab-ahsap input` matched before → not-interactable). Wait
+            // until it is actually visible/ready, then search + Enter.
+            ->waitFor('@rab-ahsap .choices__list--dropdown input', 10)
+            ->type('@rab-ahsap .choices__list--dropdown input', 'Pasang Bata Uji E2E')
             ->waitFor('@rab-ahsap .choices__list--dropdown .choices__item--selectable', 15)
-            ->keys('@rab-ahsap input', ['{enter}'])
+            ->keys('@rab-ahsap .choices__list--dropdown input', ['{enter}'])
 
             // Volume 3 (replace the default 1), then blur to commit the live field.
             ->clear('@rab-volume input')

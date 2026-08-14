@@ -114,13 +114,16 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             // dehydration (the A-vs-B disambiguation for the "aHSAP required" error).
             ->waitFor('@rab-ahsap .choices__inner', 15)
             ->click('@rab-ahsap .choices__inner')
-            // Type into the dropdown's SEARCH box (not the hidden inner cloned
-            // input `@rab-ahsap input` matched before → not-interactable). Wait
-            // until it is actually visible/ready, then search + Enter.
-            ->waitFor('@rab-ahsap .choices__list--dropdown input', 10)
-            ->type('@rab-ahsap .choices__list--dropdown input', 'Pasang Bata Uji E2E')
+            // waitFor clears on isDisplayed(), but Choices' search box is
+            // "displayed yet not interactable" mid-open (render/animation/focus),
+            // so a bare waitFor+type throws ElementNotInteractable. Let the widget
+            // settle, then assert the search box is genuinely visible before typing.
+            ->pause(500)
+            ->waitFor('@rab-ahsap .choices__input--cloned', 10)
+            ->assertVisible('@rab-ahsap .choices__input--cloned')
+            ->type('@rab-ahsap .choices__input--cloned', 'Pasang Bata Uji E2E')
             ->waitFor('@rab-ahsap .choices__list--dropdown .choices__item--selectable', 15)
-            ->keys('@rab-ahsap .choices__list--dropdown input', ['{enter}'])
+            ->keys('@rab-ahsap .choices__input--cloned', ['{enter}'])
 
             // Volume 3 (replace the default 1), then blur to commit the live field.
             ->clear('@rab-volume input')

@@ -70,8 +70,9 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ## ADR-0013 — Prasyarat go-live gateway pembayaran nyata
 
-- **Tanggal:** 2026-07-01
-- **Status:** Diterima (item pra-produksi — WAJIB sebelum integrasi gateway nyata)
+- **Tanggal:** 2026-07-01 (dieksekusi 2026-08)
+- **Status:** **Dieksekusi** — ketiga prasyarat sudah dibangun & diuji (lihat
+  "Eksekusi" di bawah). Sisa hanya isi kredensial/allowlist saat deploy.
 - **Konteks:** Webhook pembayaran (Fase 3-6) berjalan di atas `SimulatedGateway`
   (ADR-0012) tanpa kredensial. Sebelum gateway nyata (Midtrans/Xendit) dipasang,
   ada beberapa prasyarat keamanan/operasional yang **tidak boleh lolos** ke
@@ -92,12 +93,22 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
   nyata, kerjakan checklist ini lebih dulu. Idempotensi/anti-replay berbasis
   state termin (Fase 3-6) tetap berlaku dan tak perlu diubah.
 
+- **Eksekusi (2026-08):** Ketiganya dibangun bersama `MidtransGateway` (ADR-0012):
+  (1) verifikasi signature **SHA512 `hash_equals`** dari kredensial config/env +
+  re-konfirmasi Status API opsional (`MIDTRANS_VERIFY_STATUS`); (2) middleware
+  **`AllowlistPaymentWebhookIp`** + limiter **`throttle:payment-webhook`**
+  (`PAYMENT_WEBHOOK_IPS`, `PAYMENT_WEBHOOK_MAX_ATTEMPTS`/`_DECAY_SECONDS`);
+  (3) tabel **`payment_webhook_logs`** + `PaymentWebhookLogger` (redaksi
+  signature). Digerbangkan `PaymentGatewayMidtransDodTest`. Aktivasi produksi =
+  isi kredensial + `PAYMENT_GATEWAY=midtrans` (checklist go-live §2).
+
 ---
 
 ## ADR-0012 — Abstraksi payment gateway (interface + simulasi default)
 
-- **Tanggal:** 2026-07-01
-- **Status:** Diterima
+- **Tanggal:** 2026-07-01 (implementasi nyata 2026-08)
+- **Status:** **Dieksekusi** — kontrak + `SimulatedGateway` default, **dan**
+  `MidtransGateway` nyata; pemilihan via config `PAYMENT_GATEWAY` (ADR-0013).
 - **Konteks:** Pembayaran butuh gateway (VA/Snap) tetapi lingkungan dev/test
   dikendalikan dari HP tanpa kredensial sandbox andal, dan menautkan SDK gateway
   nyata sekarang menambah rahasia + kerapuhan jaringan pada test. Keputusan

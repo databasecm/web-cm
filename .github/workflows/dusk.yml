@@ -70,6 +70,13 @@ jobs:
         run: php artisan dusk:chrome-driver --detect
 
       - name: Serve the application
+        env:
+          # Let PHP's built-in server handle concurrent requests. Without this it
+          # is single-threaded, so a lazy-loaded Livewire component (e.g. a
+          # Filament relation manager) whose deferred XHR fires while the page
+          # request is still in flight can stall — the D-3 RAB builder lives on
+          # such a relation manager.
+          PHP_CLI_SERVER_WORKERS: 4
         run: |
           php artisan serve --host=127.0.0.1 --port=8000 --no-reload > /tmp/serve.log 2>&1 &
           # Wait until the server answers before running the browser.

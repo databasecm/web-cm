@@ -74,6 +74,7 @@ class RabsRelationManager extends RelationManager
                 Tables\Actions\Action::make('buatRab')
                     ->label('Buat RAB')
                     ->icon('heroicon-o-plus')
+                    ->modalSubmitActionLabel('Simpan RAB')
                     ->visible(fn (): bool => auth()->user()->can('create', Rab::class))
                     ->form(fn (): array => $this->buildForm())
                     ->action(function (array $data): void {
@@ -105,14 +106,21 @@ class RabsRelationManager extends RelationManager
                 ->label('Item Pekerjaan (AHSAP)')
                 ->live()
                 ->columns(2)
+                // `dusk` hooks below are invisible in production (plain HTML
+                // attributes) — they give the D-3 browser test stable,
+                // locale-independent selectors for the AHSAP Select inside this
+                // Repeater, the exact nesting ADR-0009 left to Dusk to prove.
+                ->addAction(fn ($action) => $action->extraAttributes(['dusk' => 'rab-add-item']))
                 ->schema([
                     Forms\Components\Select::make('ahsap_id')
                         ->label('AHSAP')
                         ->options($ahsapOptions)
                         ->searchable()
                         ->required()
-                        ->live(),
-                    Forms\Components\TextInput::make('volume')->label('Volume')->numeric()->default(1)->required()->live(onBlur: true),
+                        ->live()
+                        ->extraAttributes(['dusk' => 'rab-ahsap']),
+                    Forms\Components\TextInput::make('volume')->label('Volume')->numeric()->default(1)->required()->live(onBlur: true)
+                        ->extraAttributes(['dusk' => 'rab-volume']),
                 ]),
 
             Forms\Components\Section::make('Tarif')
@@ -128,7 +136,8 @@ class RabsRelationManager extends RelationManager
 
             Forms\Components\Placeholder::make('grand_total_preview')
                 ->label('Perkiraan Grand Total')
-                ->content(fn (Get $get): string => 'Rp '.$this->previewGrandTotal($get)),
+                ->content(fn (Get $get): string => 'Rp '.$this->previewGrandTotal($get))
+                ->extraAttributes(['dusk' => 'rab-preview']),
         ];
     }
 

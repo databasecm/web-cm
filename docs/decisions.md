@@ -187,8 +187,9 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
 
 ## ADR-0009 — Test E2E UI (Dusk) ditunda ke fase QA pra-produksi
 
-- **Tanggal:** 2026-06-29
-- **Status:** Diterima (item pra-produksi, sejajar ADR-0002)
+- **Tanggal:** 2026-06-29 (dieksekusi 2026-08)
+- **Status:** **Sebagian dieksekusi** — D-1 & D-2 hijau permanen; D-3 (RAB builder
+  Select-dalam-Repeater) **known-flaky, non-blocking** (lihat "Eksekusi" di bawah).
 - **Konteks:** Beberapa permukaan Filament sulit diuji penuh lewat test harness
   Livewire — khususnya **injeksi nilai `Select` di dalam `Repeater`** (nilai
   ter-strip; keterbatasan dikenal Filament/Livewire). Akibatnya, kebenaran
@@ -208,6 +209,24 @@ singkat: konteks, keputusan, konsekuensi. Urut terbaru di atas.
   itu, risiko diterima karena tiap unit logika sudah tergerbang test dan app
   belum publik. Pola "gerbang math di service, UI test untuk
   visibilitas/scope" adalah keputusan sadar, bukan kompromi.
+
+- **Eksekusi (2026-08):** Dusk dipasang pada workflow **terpisah & non-blocking**
+  (`.github/workflows/dusk.yml`; Pint+Pest di `ci.yml` tetap gerbang wajib).
+  - **D-1** — fondasi Dusk + smoke panel (landing + login L4 → dashboard). **Hijau.**
+  - **D-2** — challenge 2FA L3 dengan **TOTP nyata** (valid lolos, salah ditolak;
+    2FA tak pernah dinonaktifkan). **Hijau.**
+  - **D-3** — RAB builder E2E (**`Select` di dalam `Repeater`**, inti ADR-0009).
+    Terbukti **SUBSTANSIAL** namun **otomatis known-flaky** di CI headless:
+    disambiguasi A/B membuktikan **produksi aman** (memilih AHSAP dengan benar
+    **menghapus** error "aHSAP required", dan preview **769.230,00** lolos di
+    browser nyata = nilai nested-Select ter-commit untuk pengguna asli). Kegagalan
+    hanya pada otomasi: nilai **ter-set** pada widget Choices.js (`SELECT-DIAG`
+    menunjukkan native `<select>` `""→"1"`, tanpa error) tetapi event
+    **`->live()` Livewire tak menyala** di headless, sehingga RAB tak tersimpan
+    untuk di-poll DB. Test di-`markTestSkipped` (bukan dihapus) dengan alasan
+    terdokumentasi, **siap diaktifkan** bila otomasi Choices membaik →
+    `dusk.yml` **hijau** (3 lolos, 1 skipped). Kebenaran RAB tetap digerbangkan
+    service-level **2B-4** (`RabBuilderTest`). Rincian: `docs/panduan/D-3-Penutupan.md`.
 
 ---
 

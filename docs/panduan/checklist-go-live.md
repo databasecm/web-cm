@@ -47,32 +47,42 @@ go-live, tukar ke S3-compatible — **hanya konfigurasi**, tanpa perubahan kode.
 
 ## 2. Payment gateway nyata (ADR-0012 / ADR-0013) **[WAJIB sebelum terima uang]**
 
-Default saat ini `SimulatedGateway` (VA/ref deterministik, tanpa jaringan),
-di-*bind* di `app/Providers/AppServiceProvider.php`:
-`bind(PaymentGateway::class, SimulatedGateway::class)`. Untuk gateway nyata
-(condong ke **Midtrans**; Xendit alternatif):
+**SUDAH DIBANGUN (2026-08).** Gateway **Midtrans nyata** (Core API VA), webhook
+hardening, dan audit log semuanya sudah ada dan diuji. Yang tersisa untuk go-live
+hanyalah **mengisi kredensial + menukar mode via config** (pola A3) — **tanpa
+perubahan kode**.
 
-- [ ] **Implementasi gateway nyata** dari kontrak
-      `App\Services\Payment\PaymentGateway` (`createCharge()` +
-      `verifyCallback()`), lalu **re-bind** di `AppServiceProvider` menggantikan
-      `SimulatedGateway`. **Alur tidak berubah** — hanya binding.
-- [ ] **Verifikasi signature callback NYATA** di `verifyCallback()` — pakai
-      kredensial dari config/env, **tanpa kunci hard-coded** (ADR-0013 #1).
-- [ ] **Throttle + allowlist IP gateway** pada endpoint publik
-      `POST /api/v1/payments/webhook` (ADR-0013 #2) — **WAJIB** untuk membatasi
-      abuse. (Saat ini endpoint publik tanpa throttle karena masih simulasi.)
-- [ ] Kredensial gateway di `.env` (mis. `MIDTRANS_SERVER_KEY`,
-      `MIDTRANS_CLIENT_KEY`, flag `MIDTRANS_IS_PRODUCTION`) **[perlu verifikasi]**
-      nama variabel final saat integrasi; daftarkan di `config/services.php` +
-      `.env.example` (tanpa nilai).
-- [ ] **Queue worker hidup** (lihat deploy.md §2.5) — callback yang terverifikasi
+Sudah dibangun & digerbangkan test:
+
+- [x] **Implementasi gateway nyata** `App\Services\Payment\MidtransGateway`
+      (`createCharge()` + `verifyCallback()`) dari kontrak `PaymentGateway`.
+      Binding dipilih **via config** `config/payment.php` (`gateway` = select
+      `simulated`|`midtrans`), di-*resolve* di `AppServiceProvider`. Default masih
+      `simulated` (bebas kredensial).
+- [x] **Verifikasi signature callback NYATA** (SHA512 `hash_equals`, kredensial
+      dari config/env — **tanpa kunci hard-coded**), plus re-konfirmasi Status API
+      opsional (`MIDTRANS_VERIFY_STATUS`).
+- [x] **Throttle + allowlist IP** pada webhook publik — middleware
+      `AllowlistPaymentWebhookIp` + limiter `throttle:payment-webhook`.
+- [x] **`payment_webhook_logs`** (ADR-0013 #3) — tabel audit tiap callback
+      (payload ter-redaksi via `PaymentWebhookLogger`, hasil verifikasi, keputusan
+      settle/no-op).
+- [x] `PaymentGatewayMidtransDodTest` menggerbangkan klausa integrasi.
+
+Aksi saat deploy (isi di `.env`):
+
+- [ ] **Aktifkan gateway nyata:** `PAYMENT_GATEWAY=midtrans`.
+- [ ] **Kredensial Midtrans produksi:** `MIDTRANS_SERVER_KEY=<...>`,
+      `MIDTRANS_CLIENT_KEY=<...>`, `MIDTRANS_IS_PRODUCTION=true`. (Opsional:
+      `MIDTRANS_BANK` VA, `MIDTRANS_ORDER_PREFIX`, `MIDTRANS_VERIFY_STATUS`.)
+- [ ] **Allowlist IP webhook Midtrans:** `PAYMENT_WEBHOOK_IPS=<ip1,ip2,...>`
+      (kosong = allowlist non-aktif; **isi di produksi**). Sesuaikan
+      `PAYMENT_WEBHOOK_MAX_ATTEMPTS` / `PAYMENT_WEBHOOK_DECAY_SECONDS` bila perlu.
+- [ ] **Queue worker hidup** (lihat deploy.md §2.5) — callback terverifikasi
       diselesaikan lewat job `ProcessPaymentCallback` di queue.
 - [ ] Idempotensi/anti-replay berbasis **state termin** (Fase 3-6) sudah ada dan
       **tak perlu diubah** — pelunasan tetap tak bisa dibayar sebelum BAST signed
       (§7).
-- [ ] **[OPSIONAL]** `payment_webhook_logs` (ADR-0013 #3) — tabel jejak audit tiap
-      callback (payload ter-redaksi, hasil verifikasi, keputusan settle/no-op).
-      Belum ada; tambahkan bila butuh audit gateway & debugging pasca-kejadian.
 
 ---
 
@@ -126,11 +136,11 @@ sebagai task tersendiri.
 
 | Item | Sumber | Catatan |
 |---|---|---|
-| **Upgrade Laravel 12** | ADR-0002 | Menutup 3 advisory `laravel/framework` yang fix-nya hanya ada di L12 (Signed URL path confusion; 2× CRLF email rule). Major bump — verifikasi kompat Filament v3 & Fortify, suite hijau, PR terpisah. PHP `^8.4` sudah kompatibel L12. Risiko diterima selama app belum publik. |
-| **Smoke E2E (Dusk)** | ADR-0009 | Cakupan E2E UI nyata (form repeater kompleks, alur klik penuh: konsultasi→deal→RAB→checkout) dialihkan ke Laravel Dusk sebagai task QA pra-produksi. Kebenaran math/bisnis sudah tergerbang di service/feature test (Pest). |
+| ~~**Upgrade Laravel 12**~~ ✅ | ADR-0002 | **Selesai (2026-08).** Framework di `^12` (Laravel 12.65), suite hijau, Filament v3 & Fortify kompat. ADR-0002 → status *dieksekusi*. |
+| ~~**Smoke E2E (Dusk)**~~ ✅ | ADR-0009 | **Selesai (2026-08).** Dusk terpasang non-blocking: D-1 (smoke panel) & D-2 (2FA TOTP nyata) hijau; D-3 (RAB builder Select-dalam-Repeater) *known-flaky* → skipped, kebenaran tetap digerbangkan service-level 2B-4. Lihat `D-3-Penutupan.md`. |
+| ~~**`payment_webhook_logs`**~~ ✅ | ADR-0013 #3 | **Selesai (2026-08).** Tabel + `PaymentWebhookLogger` terpasang (lihat §2). |
 | **Payroll bulanan** | ditunda dari Fase 6-1 | Saat ini hanya payroll **harian mingguan** (Sabtu = hari hadir × upah harian). Skema bulanan menyusul bila dibutuhkan. |
 | **Tabel `bank_mitra` (multi-PIC)** | ADR-0014 | `bank_mitra_id` kini menunjuk **akun user L4** (satu akun = satu mitra). Bila satu bank butuh banyak PIC/akun, kenalkan tabel profil `bank_mitra` + migrasi FK di **satu titik** (`BankMitraScope::FOREIGN_KEY`). Tak ada migrasi data sekarang. |
-| **`payment_webhook_logs`** | ADR-0013 #3 | Opsional; audit trail callback gateway (lihat §2). |
 
 ---
 

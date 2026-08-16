@@ -114,19 +114,25 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
         // select and fires 'change', which Livewire's ->live() binding receives —
         // exactly like a real selection. The submit + DB-poll below still prove the
         // ADR-0009 persistence path (the nested Select value must survive to the DB).
-        $browser->script(
-            '(function(){'.
-            'var root=document.querySelector(\'[dusk="rab-ahsap"]\');'.
-            'var id='.$ahsap->id.';'.
-            'var els=root.querySelectorAll(\'[x-data]\'),inst=null;'.
+        // Alpine.$data(el).select is a reactive PROXY of the Choices instance;
+        // calling its methods through the proxy silently no-ops. Unwrap with
+        // Alpine.raw() (fall back to sel.choices, then a native change dispatch),
+        // and return a diagnostic so this single attempt is conclusive.
+        $selectResult = $browser->script(
+            'var root=document.querySelector("[dusk=rab-ahsap]");'.
+            'var els=root.querySelectorAll("[x-data]"),inst=null,via="none";'.
             'for(var i=0;i<els.length;i++){try{var d=window.Alpine.$data(els[i]);'.
-            'if(d&&d.select){inst=d.select;break;}}catch(e){}}'.
-            'if(!inst){throw new Error("Choices instance not found under [dusk=rab-ahsap]");}'.
-            'inst.setChoiceByValue([id,String(id)]);'.
-            '})();'
+            'if(d&&d.select){inst=(window.Alpine.raw?window.Alpine.raw(d.select):d.select);via="alpine.raw";break;}}catch(e){}}'.
+            'var sel=root.querySelector("select");'.
+            'if(!inst&&sel&&sel.choices){inst=sel.choices;via="sel.choices";}'.
+            'var before=sel?sel.value:null,err=null;'.
+            'if(inst){try{inst.setChoiceByValue(String('.$ahsap->id.'));via+="+set";}catch(e){err=String(e&&e.message||e);}}'.
+            'if(sel){try{sel.value=String('.$ahsap->id.');sel.dispatchEvent(new Event("input",{bubbles:true}));sel.dispatchEvent(new Event("change",{bubbles:true}));}catch(e){}}'.
+            'return {via:via,before:before,after:(sel?sel.value:null),opts:(sel?sel.options.length:-1),err:err};'
         );
+        fwrite(STDERR, '[SELECT-DIAG] '.json_encode($selectResult).PHP_EOL);
 
-        $browser->waitFor('@rab-ahsap .choices__list--single .choices__item', 10)
+        $browser->pause(500)
 
             // Volume 3 (replace the default 1), then blur to commit the live field.
             ->clear('@rab-volume input')

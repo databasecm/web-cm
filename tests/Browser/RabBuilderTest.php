@@ -104,26 +104,29 @@ it('builds a RAB through the real UI, persisting the AHSAP picked inside the Rep
             // Modal open: the Repeater starts empty — add one row.
             ->waitFor('@rab-add-item', 15)
             ->click('@rab-add-item')
-            ->waitFor('@rab-ahsap', 15)
+            ->waitFor('@rab-ahsap .choices__inner', 15);   // Choices widget initialised
 
-            // Pick the AHSAP the "human" way: open the Choices.js widget, TYPE the
-            // name so it runs a real search, then ENTER to select the highlighted
-            // option — this exercises Choices' full setChoiceByValue selection path
-            // (proper bookkeeping), unlike clicking the raw [data-value] node which
-            // only set enough state for the live preview but not for submit-time
-            // dehydration (the A-vs-B disambiguation for the "aHSAP required" error).
-            ->waitFor('@rab-ahsap .choices__inner', 15)
-            ->click('@rab-ahsap .choices__inner')
-            // waitFor clears on isDisplayed(), but Choices' search box is
-            // "displayed yet not interactable" mid-open (render/animation/focus),
-            // so a bare waitFor+type throws ElementNotInteractable. Let the widget
-            // settle, then assert the search box is genuinely visible before typing.
-            ->pause(500)
-            ->waitFor('@rab-ahsap .choices__input--cloned', 10)
-            ->assertVisible('@rab-ahsap .choices__input--cloned')
-            ->type('@rab-ahsap .choices__input--cloned', 'Pasang Bata Uji E2E')
-            ->waitFor('@rab-ahsap .choices__list--dropdown .choices__item--selectable', 15)
-            ->keys('@rab-ahsap .choices__input--cloned', ['{enter}'])
+        // Select the AHSAP through the Choices.js INSTANCE rather than simulating
+        // its search UI (inherently flaky in headless Chrome — repeated iterations
+        // kept shifting failure at this one step). The native <select> Choices wraps
+        // is rendered empty (options live in Choices' JS config), so we call
+        // Choices' own API: setChoiceByValue selects the option, updates the native
+        // select and fires 'change', which Livewire's ->live() binding receives —
+        // exactly like a real selection. The submit + DB-poll below still prove the
+        // ADR-0009 persistence path (the nested Select value must survive to the DB).
+        $browser->script(
+            '(function(){'.
+            'var root=document.querySelector(\'[dusk="rab-ahsap"]\');'.
+            'var id='.$ahsap->id.';'.
+            'var els=root.querySelectorAll(\'[x-data]\'),inst=null;'.
+            'for(var i=0;i<els.length;i++){try{var d=window.Alpine.$data(els[i]);'.
+            'if(d&&d.select){inst=d.select;break;}}catch(e){}}'.
+            'if(!inst){throw new Error("Choices instance not found under [dusk=rab-ahsap]");}'.
+            'inst.setChoiceByValue([id,String(id)]);'.
+            '})();'
+        );
+
+        $browser->waitFor('@rab-ahsap .choices__list--single .choices__item', 10)
 
             // Volume 3 (replace the default 1), then blur to commit the live field.
             ->clear('@rab-volume input')

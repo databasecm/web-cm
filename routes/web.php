@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\Portal\RabPdfController;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\ForgotPassword;
 use App\Livewire\Portal\Login;
@@ -58,6 +59,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
             // Read-only project views (P-2). Ownership is enforced by
             // ProjectPolicy::view inside the component (same gate as the API).
             Route::get('projects/{project}', ProjectDetail::class)->name('projects.show');
+
+            // RAB penawaran PDF (P-3). Same downloadPdf policy + RabPenawaranPdf
+            // service as the Sanctum API — only the guard differs.
+            Route::get('rabs/{rab}/pdf', RabPdfController::class)->name('rabs.pdf');
         });
     });
 });

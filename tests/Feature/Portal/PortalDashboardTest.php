@@ -93,20 +93,20 @@ it('404s an unknown project id', function () {
 });
 
 // ---------------------------------------------------------------------------
-// Read-only in P-2: no mutation surface yet
+// A bare project (no submitted designs/RAB) shows no actions; payment/BAST
+// actions are still absent (P-4/P-5).
 // ---------------------------------------------------------------------------
 
-it('renders the detail read-only (no approve/pay/sign actions)', function () {
+it('shows no approve/pay/sign actions on a bare project', function () {
     $me = portalConsumer();
     $project = portalOwnedProject($me);
 
     $this->actingAs($me)
         ->get(route('portal.projects.show', $project))
         ->assertOk()
-        ->assertSee('hanya-baca')
-        ->assertDontSee('Setujui')
-        ->assertDontSee('Bayar')
-        ->assertDontSee('Tanda tangan');
+        ->assertDontSee('Setujui')       // no submitted design/RAB to approve
+        ->assertDontSee('Bayar')         // payment is P-4
+        ->assertDontSee('Tanda tangan'); // BAST signing is P-5
 });
 
 // ---------------------------------------------------------------------------

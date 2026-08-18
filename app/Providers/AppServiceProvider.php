@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\Payment\PaymentGateway;
 use App\Services\Payment\SimulatedGateway;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
@@ -49,5 +50,13 @@ class AppServiceProvider extends ServiceProvider
 
             return new Limit($request->ip(), $max, max(1, (int) ceil($decaySeconds / 60)));
         });
+
+        // Password-reset emails (the deal→account setup link, ADR-0003) point at
+        // the consumer portal's reset page. Consumers are the only accounts that
+        // receive reset links, so scoping the URL to /portal is correct.
+        ResetPassword::createUrlUsing(fn (object $notifiable, string $token): string => route('portal.password.reset', [
+            'token' => $token,
+            'email' => $notifiable->getEmailForPasswordReset(),
+        ]));
     }
 }

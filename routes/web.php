@@ -4,6 +4,7 @@ use App\Http\Controllers\MediaController;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\ForgotPassword;
 use App\Livewire\Portal\Login;
+use App\Livewire\Portal\ProjectDetail;
 use App\Livewire\Portal\ResetPassword;
 use App\Livewire\Portal\VerifyEmailNotice;
 use Illuminate\Http\Request;
@@ -53,6 +54,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         // notice route above.
         Route::middleware('verified:portal.verification.notice')->group(function () {
             Route::get('/', Dashboard::class)->name('dashboard');
+
+            // Read-only project views (P-2). Ownership is enforced by
+            // ProjectPolicy::view inside the component (same gate as the API).
+            Route::get('projects/{project}', ProjectDetail::class)->name('projects.show');
         });
     });
 });

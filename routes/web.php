@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\Portal\RabPdfController;
+use App\Http\Controllers\Portal\ReceiptController;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\ForgotPassword;
 use App\Livewire\Portal\Login;
 use App\Livewire\Portal\ProjectDetail;
+use App\Livewire\Portal\ProjectPayments;
 use App\Livewire\Portal\ResetPassword;
 use App\Livewire\Portal\VerifyEmailNotice;
 use Illuminate\Http\Request;
@@ -63,6 +65,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
             // RAB penawaran PDF (P-3). Same downloadPdf policy + RabPenawaranPdf
             // service as the Sanctum API — only the guard differs.
             Route::get('rabs/{rab}/pdf', RabPdfController::class)->name('rabs.pdf');
+
+            // Payments (P-4): scheme + schedule + VA charge (Livewire), and the
+            // paid-term receipt PDF (same downloadReceipt policy as the API).
+            Route::get('projects/{project}/payments', ProjectPayments::class)->name('projects.payments');
+            Route::get('installments/{installment}/receipt', ReceiptController::class)->name('installments.receipt');
         });
     });
 });

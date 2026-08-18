@@ -26,6 +26,13 @@
         </div>
     </div>
 
+    <div class="mb-8">
+        <a href="{{ route('portal.projects.payments', $project) }}"
+            class="inline-block bg-gray-900 text-white rounded px-4 py-2 text-sm">
+            Termin &amp; pembayaran
+        </a>
+    </div>
+
     {{-- Desain --}}
     <section class="mb-8">
         <h2 class="text-lg font-semibold mb-3">Desain</h2>

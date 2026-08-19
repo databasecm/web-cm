@@ -26,10 +26,14 @@
         </div>
     </div>
 
-    <div class="mb-8">
+    <div class="mb-8 flex flex-wrap gap-2">
         <a href="{{ route('portal.projects.payments', $project) }}"
             class="inline-block bg-gray-900 text-white rounded px-4 py-2 text-sm">
             Termin &amp; pembayaran
+        </a>
+        <a href="{{ route('portal.projects.financing', $project) }}"
+            class="inline-block border border-gray-300 rounded px-4 py-2 text-sm hover:border-gray-400">
+            Pembiayaan
         </a>
     </div>
 

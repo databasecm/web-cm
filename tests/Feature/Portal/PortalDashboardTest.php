@@ -35,11 +35,13 @@ if (! function_exists('portalStaff')) {
     }
 }
 
-function portalOwnedProject(User $consumer, array $attributes = []): Project
-{
-    return Project::factory()->create(array_merge([
-        'konsumen_id' => $consumer->id,
-    ], $attributes));
+if (! function_exists('portalOwnedProject')) {
+    function portalOwnedProject(User $consumer, array $attributes = []): Project
+    {
+        return Project::factory()->create(array_merge([
+            'konsumen_id' => $consumer->id,
+        ], $attributes));
+    }
 }
 
 // ---------------------------------------------------------------------------

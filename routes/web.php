@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\Portal\BastPdfController;
 use App\Http\Controllers\Portal\RabPdfController;
 use App\Http\Controllers\Portal\ReceiptController;
 use App\Livewire\Portal\Dashboard;
@@ -70,6 +71,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
             // paid-term receipt PDF (same downloadReceipt policy as the API).
             Route::get('projects/{project}/payments', ProjectPayments::class)->name('projects.payments');
             Route::get('installments/{installment}/receipt', ReceiptController::class)->name('installments.receipt');
+
+            // BAST document PDF (P-5) — signed + owner, same downloadPdf policy +
+            // BastPdf service as the Sanctum API.
+            Route::get('bast/{bast}/pdf', BastPdfController::class)->name('bast.pdf');
         });
     });
 });

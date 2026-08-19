@@ -8,6 +8,7 @@ use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\ForgotPassword;
 use App\Livewire\Portal\Login;
 use App\Livewire\Portal\ProjectDetail;
+use App\Livewire\Portal\ProjectFinancing;
 use App\Livewire\Portal\ProjectPayments;
 use App\Livewire\Portal\ResetPassword;
 use App\Livewire\Portal\VerifyEmailNotice;
@@ -75,6 +76,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
             // BAST document PDF (P-5) — signed + owner, same downloadPdf policy +
             // BastPdf service as the Sanctum API.
             Route::get('bast/{bast}/pdf', BastPdfController::class)->name('bast.pdf');
+
+            // Financing (P-6): view/apply/upload documents (Livewire). Documents
+            // themselves are served by the signed media.show route (media-4).
+            Route::get('projects/{project}/financing', ProjectFinancing::class)->name('projects.financing');
         });
     });
 });

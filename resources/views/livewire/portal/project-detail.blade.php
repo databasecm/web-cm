@@ -86,19 +86,51 @@
         @endforelse
     </section>
 
+    {{-- BAST (Berita Acara Serah Terima) --}}
+    <section class="mb-8">
+        <h2 class="text-lg font-semibold mb-3">BAST (Serah Terima)</h2>
+        @if ($bast)
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <div class="font-medium">{{ $bast->status->label() }}</div>
+                        <div class="text-sm text-gray-500">
+                            Konsumen: {{ $bast->signed_customer ? 'sudah tanda tangan' : 'belum' }}
+                            &middot; Perusahaan: {{ $bast->signed_company ? 'sudah tanda tangan' : 'belum' }}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        @if ($bast->isSigned())
+                            <a href="{{ route('portal.bast.pdf', $bast) }}" class="text-sm text-blue-600 hover:underline">
+                                Unduh BAST
+                            </a>
+                        @endif
+                        @if (! $bast->signed_customer)
+                            <button type="button" wire:click="signBast({{ $bast->id }})"
+                                wire:confirm="Tanda tangani BAST serah terima proyek ini?"
+                                class="bg-gray-900 text-white rounded px-4 py-2 text-sm">
+                                Tanda tangan BAST
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @else
+            <div class="text-sm text-gray-500">BAST belum diterbitkan.</div>
+        @endif
+    </section>
+
     {{-- Ringkasan lain --}}
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+    <div class="grid grid-cols-2 gap-4 text-sm">
         <div class="bg-white border border-gray-200 rounded-lg p-4">
             <div class="text-gray-500">Termin</div>
             <div class="font-medium">{{ $project->installments_count }}</div>
         </div>
         <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <div class="text-gray-500">BAST</div>
-            <div class="font-medium">{{ $hasBast ? 'Terbit' : '—' }}</div>
+            <div class="text-gray-500">Pembayaran</div>
+            <a href="{{ route('portal.projects.payments', $project) }}" class="font-medium text-blue-600 hover:underline">
+                Buka
+            </a>
         </div>
     </div>
-
-    <p class="mt-6 text-xs text-gray-400">
-        Pembayaran termin dan tanda tangan BAST akan tersedia di sini.
-    </p>
 </div>

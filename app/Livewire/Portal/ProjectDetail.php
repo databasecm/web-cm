@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Portal;
 
+use App\Enums\BastParty;
+use App\Models\Bast;
 use App\Models\Design;
 use App\Models\Project;
 use App\Models\Rab;
+use App\Services\BastService;
 use App\Services\DesignService;
 use App\Services\RabService;
 use Illuminate\Support\Facades\Gate;
@@ -62,6 +65,21 @@ class ProjectDetail extends Component
         $this->flash = 'RAB disetujui.';
     }
 
+    public function signBast(int $bastId): void
+    {
+        $bast = Bast::findOrFail($bastId);
+
+        Gate::authorize('signCustomer', $bast);
+
+        // Records the consumer signature and — once BOTH parties have signed —
+        // flips the BAST to signed and opens the pelunasan term (§7). The service
+        // is transaction-safe and idempotent, so a double submit never
+        // double-unlocks; there is no signing/unlock logic here.
+        app(BastService::class)->recordSignature($bast, BastParty::Customer, auth()->id());
+
+        $this->flash = 'Tanda tangan Anda direkam.';
+    }
+
     public function render()
     {
         $this->project->loadCount(['designs', 'rabs', 'installments']);
@@ -69,7 +87,7 @@ class ProjectDetail extends Component
         return view('livewire.portal.project-detail', [
             'designs' => $this->project->designs()->orderByDesc('version')->get(),
             'rabs' => $this->project->rabs()->orderByDesc('version')->get(),
-            'hasBast' => $this->project->bast()->exists(),
+            'bast' => $this->project->bast()->with(['customerSigner', 'companySigner'])->first(),
         ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Portal\ReceiptController;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\ForgotPassword;
 use App\Livewire\Portal\Login;
+use App\Livewire\Portal\Notifications;
 use App\Livewire\Portal\ProjectDetail;
 use App\Livewire\Portal\ProjectFinancing;
 use App\Livewire\Portal\ProjectPayments;
@@ -59,6 +60,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
         // notice route above.
         Route::middleware('verified:portal.verification.notice')->group(function () {
             Route::get('/', Dashboard::class)->name('dashboard');
+
+            // In-app notification inbox (P-7). Reads the SAME notifications as
+            // the Sanctum inbox (Fase 7-2) via the web guard; every action is
+            // scoped to the consumer's own notifications (NotificationPolicy).
+            Route::get('notifications', Notifications::class)->name('notifications');
 
             // Read-only project views (P-2). Ownership is enforced by
             // ProjectPolicy::view inside the component (same gate as the API).

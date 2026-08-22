@@ -22,6 +22,15 @@
                         CV Cimandiri — Portal Konsumen
                     </a>
                     <div class="flex items-center gap-4 text-sm">
+                        @php($portalUnread = auth('web')->user()->unreadNotifications()->count())
+                        <a href="{{ route('portal.notifications') }}" class="text-gray-600 hover:text-gray-900">
+                            Notifikasi
+                            @if ($portalUnread > 0)
+                                <span class="ml-1 inline-flex items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-medium text-white">
+                                    {{ $portalUnread > 99 ? '99+' : $portalUnread }}
+                                </span>
+                            @endif
+                        </a>
                         <span class="text-gray-500">{{ auth('web')->user()->name }}</span>
                         <form method="POST" action="{{ route('portal.logout') }}">
                             @csrf

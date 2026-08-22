@@ -13,13 +13,15 @@ use App\Livewire\Portal\ProjectFinancing;
 use App\Livewire\Portal\ProjectPayments;
 use App\Livewire\Portal\ResetPassword;
 use App\Livewire\Portal\VerifyEmailNotice;
+use App\Livewire\Public\Landing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Public company landing (Fase portal P-8) — no login. Company profile + the
+// five business units + a guest consultation form (Redis-only, ADR-0003) + the
+// door into the consumer portal. It never queries a project or a consumer.
+Route::get('/', Landing::class)->name('landing');
 
 // Media download (ADR-0015). Signed (freshness) + authenticated (web session or
 // Sanctum token) so MediaController can re-check the module policy. Never public.

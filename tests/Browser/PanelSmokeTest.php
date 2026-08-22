@@ -24,7 +24,7 @@ beforeEach(function () {
 it('serves the public landing page in a real browser', function () {
     $this->browse(function (Browser $browser) {
         $browser->visit('/')
-            ->assertSee('Laravel'); // welcome view — proves serve + Chrome are alive
+            ->assertSee('Cimandiri'); // public landing — proves serve + Chrome are alive
     });
 });
 
